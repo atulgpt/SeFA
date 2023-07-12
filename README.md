@@ -1,4 +1,4 @@
-# SeFa
+# SeFA
 Python module to generate Indian ITR schedule FA under section A3 automatically
 
 # How to run
@@ -14,8 +14,10 @@ The script runs on Python3 make sure it is installed on the system
 
 Below example, the command runs the script with the downloaded `BenefitHistory.xlsx`
 ```sh
-./run.py -i "BenefitHistory.xlsx" -ay 2023
+./run.py -i "<absolute_folder_of_benifit_history_file>/BenefitHistory.xlsx" -ay 2023
 ```
+You may also have to install the missing Python3 dependencies using command `pip3 install <dependency_name>`
+
 Detailed options are listed below
 ```sh
 usage: run.py [-h] [-o OUTPUT_FOLDER] -i INPUT_EXCEL_FILE [-m {etrade_benefit_history}] [-cal {calendar,financial}] -ay ASSESSMENT_YEAR [-v]
