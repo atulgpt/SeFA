@@ -25,7 +25,7 @@ default_calendar_mode = "calendar"
 
 def main():
     parser = argparse.ArgumentParser(
-        description="This is a python module to automatically generate Indian ITR schedule FA under section A3"
+        description="This is a Python module to generate Indian ITR schedule FA under section A3 automatically"
     )
     parser.add_argument(
         "-o",
@@ -33,14 +33,14 @@ def main():
         action="store",
         default=default_output_folder_path,
         dest="output_folder",
-        help=f"Specify the absolute path of output folder for json data, default = {default_output_folder_path}",
+        help=f"Specify the absolute path of the absolute path of output folder for JSON data, default = {default_output_folder_path}",
     )
     parser.add_argument(
         "-i",
         "--input",
         action="store",
         dest="input_excel_file",
-        help=f"Specify the absolute path for input benefit history(BenefitHistory.xlsx) excel file",
+        help=f"Specify the absolute path for input benefit history(BenefitHistory.xlsx) Excel file",
         required=True,
     )
     parser.add_argument(
@@ -50,7 +50,7 @@ def main():
         default=default_output_folder_path,
         dest="source_mode",
         choices=[f"{default_source_mode}"],
-        help=f"Specify the source mode. Currently only benefit history from etrade is supported, default = {default_source_mode}",
+        help=f"Specify the source mode. Currently, only benefit history from etrade is supported, default = {default_source_mode}",
     )
     parser.add_argument(
         "-cal",
@@ -59,7 +59,7 @@ def main():
         default=default_calendar_mode,
         dest="calendar_mode",
         choices=[f"{default_calendar_mode}", "financial"],
-        help=f"Specify the calendar duration for consideration,, default = {default_calendar_mode}",
+        help=f"Specify the calendar duration for consideration, default = {default_calendar_mode}",
     )
     parser.add_argument(
         "-ay",
