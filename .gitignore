@@ -1,0 +1,19 @@
+output
+.DS_STORE
+*.xlsx
+*.xls
+*.csv
+!rates.xlsx
+!rates.xls
+!data.csv
+!sample_benifit_history.xlsx
+
+*.pyc
+
+### VisualStudioCode ###
+.vscode/*
+.vscode/**/* instead - see comments
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json

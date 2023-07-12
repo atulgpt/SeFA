@@ -1,0 +1,15 @@
+{
+    "python.formatting.provider": "black",
+    "cSpell.words": [
+        "demat",
+        "disp",
+        "ESPP",
+        "etrade",
+        "iterrows",
+        "millis",
+        "openpyxl",
+        "sefa",
+        "skiprows",
+        "witholding"
+    ]
+}
