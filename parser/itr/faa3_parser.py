@@ -60,10 +60,15 @@ def parse_org_purchases(
     print(f"this financial year total quantity({ticker}) = {after_sum}")
 
     fa_entries = []
-    before_purchase_date = date_utils.parse_mm_dd(f"01/01/{assessment_year}")
-    closing_inr_price = share_data_utils.closing_price(
-        ticker, end_time_in_millis
-    ) * rbi_rates_utils.get_rate_at_time_in_millis(currency_code, end_time_in_millis)
+    before_purchase_date = date_utils.parse_mm_dd(f"12/30/{assessment_year - 2}")
+    closing_rbi_rate = rbi_rates_utils.get_rate_at_time_in_millis(
+        currency_code, end_time_in_millis
+    )
+    closing_share_price = share_data_utils.closing_price(ticker, end_time_in_millis)
+    closing_inr_price = closing_share_price * closing_rbi_rate
+    print(
+        f"Closing price(INR) = {closing_inr_price}, closing_share_price = {closing_share_price} closing_rbi_rate = {closing_rbi_rate}"
+    )
     fmv_price_on_start = share_data_utils.get_fmv(
         ticker, before_purchase_date["time_in_millis"]
     )
@@ -128,24 +133,27 @@ def parse_org_purchases(
         os.path.join(output_folder, ticker),
         "fa_entries.csv",
         [
-            "Country",
+            "Country/Region Name and Code",
             "Name of Entity",
             "Address of Entity",
-            "Zip Code",
+            "ZIP Code",
             "Nature of Entity",
-            "Date of Acquisition",
-            "Initial Investment",
-            "Peak Investment",
+            "Date of acquiring the interest",
+            "Initial value of the investment",
+            "Peak value of the investment during the Period",
+            "Closing Value",
         ],
         map(
             lambda entry: (
                 entry.org.country_name,
                 entry.org.name,
+                entry.org.address,
                 entry.org.zip_code,
                 entry.org.nature,
                 entry.purchase.date["disp_time"],
-                entry.purchase_price,
-                entry.peak_price,
+                round(entry.purchase_price),
+                round(entry.peak_price),
+                round(entry.closing_price),
             ),
             fa_entries,
         ),
