@@ -72,30 +72,31 @@ def parse_org_purchases(
     fmv_price_on_start = share_data_utils.get_fmv(
         ticker, before_purchase_date["time_in_millis"]
     )
-    fa_entries.append(
-        FAA3(
-            org,
-            purchase=Purchase(
-                before_purchase_date,
-                Price(
-                    fmv_price_on_start,
-                    ticker_currency_info[ticker],
+    if previous_sum != 0:
+        fa_entries.append(
+            FAA3(
+                org,
+                purchase=Purchase(
+                    before_purchase_date,
+                    Price(
+                        fmv_price_on_start,
+                        ticker_currency_info[ticker],
+                    ),
+                    quantity=previous_sum,
+                    ticker=ticker,
                 ),
-                quantity=previous_sum,
-                ticker=ticker,
-            ),
-            purchase_price=previous_sum
-            * fmv_price_on_start
-            * rbi_rates_utils.get_rate_at_time_in_millis(
-                currency_code, start_time_in_millis
-            ),
-            peak_price=previous_sum
-            * share_data_utils.peak_price_in_inr(
-                ticker, start_time_in_millis, end_time_in_millis
-            ),
-            closing_price=previous_sum * closing_inr_price,
+                purchase_price=previous_sum
+                * fmv_price_on_start
+                * rbi_rates_utils.get_rate_at_time_in_millis(
+                    currency_code, start_time_in_millis
+                ),
+                peak_price=previous_sum
+                * share_data_utils.peak_price_in_inr(
+                    ticker, start_time_in_millis, end_time_in_millis
+                ),
+                closing_price=previous_sum * closing_inr_price,
+            )
         )
-    )
 
     for purchase in after_purchases:
         fa_entries.append(
