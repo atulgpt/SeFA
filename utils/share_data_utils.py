@@ -4,7 +4,9 @@ import date_utils
 import logger
 from ticker_mapping import ticker_currency_info
 
-sys.path.insert(1, "./rates")
+script_path = os.path.realpath(__file__)
+script_folder = os.path.dirname(script_path)
+sys.path.insert(1, os.path.join(script_folder, "rates"))
 import rbi_rates_utils
 
 

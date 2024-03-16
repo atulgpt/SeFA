@@ -1,18 +1,21 @@
-import sys
+import sys, os
 import pandas as pd
+
 # from openpyxl import load_workbook
-from datetime import datetime
 
 debug = False
 
-sys.path.insert(1, "../../utils")
-from ticker_mapping import ticker_org_info, ticker_currency_info
+script_path = os.path.realpath(__file__)
+script_folder = os.path.dirname(script_path)
+top_folder = os.path.dirname(os.path.dirname(script_folder))
+sys.path.insert(1, os.path.join(top_folder, "utils"))
+from ticker_mapping import ticker_currency_info
 import logger
 import file_utils
 import date_utils
 import share_data_utils
 
-sys.path.insert(1, "./models")
+sys.path.insert(1, os.path.join(top_folder, "models"))
 from purchase import Purchase, Price
 
 espp_sheet_name = "ESPP"

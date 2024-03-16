@@ -1,20 +1,22 @@
 import sys
 import os
 
-sys.path.insert(1, "../../utils")
+script_path = os.path.realpath(__file__)
+script_folder = os.path.dirname(script_path)
+top_folder = os.path.dirname(os.path.dirname(script_folder))
+sys.path.insert(1, os.path.join(top_folder, "utils"))
 from ticker_mapping import ticker_org_info, ticker_currency_info
-import logger
 import date_utils
 import share_data_utils
 import file_utils
 
-sys.path.insert(1, "../../utils/rates")
+sys.path.insert(1, os.path.join(top_folder, "utils", "rates"))
 import rbi_rates_utils
 
-sys.path.insert(1, "../../models")
+sys.path.insert(1, os.path.join(top_folder, "models"))
 from purchase import Purchase, Price
 
-sys.path.insert(1, "../../models/itr")
+sys.path.insert(1, os.path.join(top_folder, "models", "itr"))
 from faa3 import FAA3
 
 from itertools import groupby

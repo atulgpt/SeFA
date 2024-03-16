@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
-
 import argparse
 import os
 import sys
+import traceback
 
-sys.path.insert(1, "./utils")
-sys.path.insert(1, "./utils/rates")
-sys.path.insert(1, "./parser/demat")
-sys.path.insert(1, "./parser/itr")
-sys.path.insert(1, "./models")
-sys.path.insert(1, "./models/itr")
+script_path = os.path.realpath(__file__)
+script_folder = os.path.dirname(script_path)
+sys.path.insert(1, os.path.join(script_folder, "utils"))
+sys.path.insert(1, os.path.join(script_folder, "utils", "rates"))
+sys.path.insert(1, os.path.join(script_folder, "parser", "demat"))
+sys.path.insert(1, os.path.join(script_folder, "parser", "itr"))
+sys.path.insert(1, os.path.join(script_folder, "models"))
+sys.path.insert(1, os.path.join(script_folder, "models", "itr"))
 import logger
-from org import Organization
 import etrade_benefit_history_parser
 import faa3_parser
 

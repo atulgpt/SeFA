@@ -1,7 +1,10 @@
-import sys
+import sys, os
 from types import MappingProxyType
 
-sys.path.insert(1, "../models")
+script_path = os.path.realpath(__file__)
+script_folder = os.path.dirname(script_path)
+top_folder = os.path.dirname(script_folder)
+sys.path.insert(1, os.path.join(top_folder, "models"))
 from org import Organization
 
 ticker_org_info = MappingProxyType(
