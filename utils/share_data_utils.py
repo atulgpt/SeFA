@@ -25,8 +25,8 @@ def __validate_dates(historic_entry_time_in_millis, purchase_time_in_millis):
     if days_diff > 0:
         msg = f"Historical FMV at {date_utils.log_timestamp(purchase_time_in_millis)} was NOT available last available(maybe due to Public Holiday) data is {int(days_diff)} days old(on {date_utils.display_time(historic_entry_time_in_millis)})"
         logger.log(msg)
-        if days_diff > 2:
-            raise Exception(msg)
+        # if days_diff > 2:
+        #     raise Exception(msg)
 
 
 price_map = {}
