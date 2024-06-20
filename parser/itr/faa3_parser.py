@@ -161,6 +161,7 @@ def parse_org_purchases(
             fa_entries,
         ),
         True,
+        print_path_to_console=True,
     )
     return fa_entries
 

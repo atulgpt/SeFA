@@ -1,6 +1,7 @@
 import os
 import json
 import csv
+import typing as t
 
 
 class MapEncoder(json.JSONEncoder):
@@ -10,17 +11,23 @@ class MapEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-def write_to_file(output_file_path, name, obj, override):
+def write_to_file(
+    output_file_path,
+    file_name,
+    obj,
+    override: bool,
+    print_path_to_console: bool = False,
+):
     if not os.path.exists(output_file_path):
         os.makedirs(output_file_path)
 
-    final_file_path = os.path.join(output_file_path, name)
+    final_file_path = os.path.join(output_file_path, file_name)
 
     if os.path.exists(final_file_path) and not override:
         raise Exception(
             f"Path {final_file_path} already exists and force(-f) flag is not added to delete the path"
         )
-    with open(os.path.join(output_file_path, name), "w") as f:
+    with open(final_file_path, "w") as f:
         f.write(
             json.dumps(
                 obj,
@@ -31,15 +38,24 @@ def write_to_file(output_file_path, name, obj, override):
                 default=vars,
             )
         )
+        if print_path_to_console:
+            __print_file_path(final_file_path)
 
     return final_file_path
 
 
-def write_csv_to_file(output_file_path, name, keys, objs, override):
+def write_csv_to_file(
+    output_file_path: str,
+    file_name: str,
+    keys: t.List[str],
+    objs,
+    override: bool,
+    print_path_to_console: bool = False,
+):
     if not os.path.exists(output_file_path):
         os.makedirs(output_file_path)
 
-    final_file_path = os.path.join(output_file_path, name)
+    final_file_path = os.path.join(output_file_path, file_name)
     if os.path.exists(final_file_path) and not override:
         raise Exception(
             f"Path {final_file_path} already exists and force(-f) flag is not added to delete the path"
@@ -49,3 +65,9 @@ def write_csv_to_file(output_file_path, name, keys, objs, override):
         writer.writerow(keys)
         for obj in objs:
             writer.writerow(obj)
+        if print_path_to_console:
+            __print_file_path(final_file_path)
+
+
+def __print_file_path(final_path: str):
+    print(f"Output file created at {final_path}")
