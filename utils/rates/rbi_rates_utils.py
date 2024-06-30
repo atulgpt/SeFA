@@ -1,6 +1,7 @@
 import sys, os
 import pandas as pd
 from datetime import datetime
+import typing as t
 
 script_path = os.path.realpath(__file__)
 script_folder = os.path.dirname(script_path)
@@ -9,15 +10,24 @@ sys.path.insert(1, os.path.join(top_folder, "utils"))
 import date_utils
 import logger
 
-rate_map = {}
+
+class RbiRateObj(t.TypedDict):
+    time_in_millis: int
+    rate: float
 
 
-def __init_map(currency_code):
+RbiYearMonthRateMap = t.Dict[int, t.Dict[int, RbiRateObj]]
+RbiCurrencyToRateMap = t.Dict[str, RbiYearMonthRateMap]
+
+rate_map: RbiCurrencyToRateMap = {}
+
+
+def __init_map(currency_code: str) -> RbiYearMonthRateMap:
     if currency_code not in rate_map:
         print(f"Parsing rbi rate for currency code = {currency_code}")
-        currency_rate_map = {}
+        currency_rate_map: RbiYearMonthRateMap = {}
         script_path = os.path.realpath(os.path.dirname(__file__))
-        rbi_rates_file_path = os.path.join(
+        rbi_rates_file_abs_path = os.path.join(
             script_path,
             os.pardir,
             os.pardir,
@@ -26,14 +36,13 @@ def __init_map(currency_code):
             "rbi",
             "rates.xls",
         )
+        if not os.path.exists(rbi_rates_file_abs_path):
+            raise Exception(f"RBI rates.xls {rbi_rates_file_abs_path} is NOT present")
 
-        if not os.path.exists(rbi_rates_file_path):
-            raise Exception(f"Rbi rates file {rbi_rates_file_path} is NOT present")
-
-        with pd.ExcelFile(rbi_rates_file_path, engine="openpyxl") as xl:
+        with pd.ExcelFile(rbi_rates_file_abs_path, engine="openpyxl") as xl:
             logger.debug_log(f"Currently parsing Reference Rates sheet")
             sheet_pd = xl.parse(sheet_name="Reference Rates", skiprows=0, header=2)
-            for index, data in sheet_pd.iterrows():
+            for _, data in sheet_pd.iterrows():
                 if data["Currency Pairs"] == f"INR / 1 {currency_code.upper()}":
                     rate_time = datetime.strptime(data["Date"], "%d %b %Y")
                     if (
@@ -42,13 +51,13 @@ def __init_map(currency_code):
                         or currency_rate_map[rate_time.year][rate_time.month][
                             "time_in_millis"
                         ]
-                        < date_utils.__epoch(rate_time)
+                        < date_utils.epoch_in_ms(rate_time)
                     ):
                         currency_rate_map[rate_time.year] = currency_rate_map.get(
                             rate_time.year, {}
                         )
                         currency_rate_map[rate_time.year][rate_time.month] = {
-                            "time_in_millis": date_utils.__epoch(rate_time),
+                            "time_in_millis": date_utils.epoch_in_ms(rate_time),
                             "rate": data["Rate"],
                         }
 
@@ -57,11 +66,11 @@ def __init_map(currency_code):
     return rate_map[currency_code]
 
 
-def get_rate_at_month(currency_code, month, year):
+def get_rate_at_month(currency_code: str, month: int, year: int) -> float:
     rate_month, rate_year = (month - 1, year) if month != 1 else (12, year - 1)
     return __init_map(currency_code)[rate_year][rate_month]["rate"]
 
 
-def get_rate_at_time_in_millis(currency_code, time_in_millis):
-    dt = datetime.utcfromtimestamp(time_in_millis / 1000)
+def get_rate_at_time_in_ms(currency_code: str, time_in_ms: int) -> float:
+    dt = datetime.utcfromtimestamp(time_in_ms / 1000)
     return get_rate_at_month(currency_code, dt.month, dt.year)

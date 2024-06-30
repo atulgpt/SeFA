@@ -19,7 +19,7 @@ import faa3_parser
 # arguments defaults
 script_path = os.path.realpath(os.path.dirname(__file__))
 default_output_folder_name = "output"
-default_output_folder_path = os.path.join(script_path, default_output_folder_name)
+default_output_folder_abs_path = os.path.join(script_path, default_output_folder_name)
 default_source_mode = "etrade_benefit_history"
 default_calendar_mode = "calendar"
 
@@ -32,9 +32,10 @@ def main():
         "-o",
         "--output",
         action="store",
-        default=default_output_folder_path,
+        type=str,
+        default=default_output_folder_abs_path,
         dest="output_folder",
-        help=f"Specify the absolute path of the absolute path of output folder for JSON data, default = {default_output_folder_path}",
+        help=f"Specify the absolute path of the absolute path of output folder for JSON data, default = {default_output_folder_abs_path}",
     )
     parser.add_argument(
         "-i",
@@ -48,7 +49,7 @@ def main():
         "-m",
         "--source-mode",
         action="store",
-        default=default_output_folder_path,
+        default=default_source_mode,
         dest="source_mode",
         choices=[f"{default_source_mode}"],
         help=f"Specify the source mode. Currently, only benefit history from etrade is supported, default = {default_source_mode}",
@@ -57,6 +58,7 @@ def main():
         "-cal",
         "--calendar-mode",
         action="store",
+        type=str,
         default=default_calendar_mode,
         dest="calendar_mode",
         choices=[f"{default_calendar_mode}", "financial"],

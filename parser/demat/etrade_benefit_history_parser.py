@@ -1,5 +1,6 @@
 import sys, os
 import pandas as pd
+import typing as t
 
 # from openpyxl import load_workbook
 
@@ -22,7 +23,7 @@ espp_sheet_name = "ESPP"
 rsu_sheet_name = "Restricted Stock"
 
 
-def parse_espp_row(data):
+def parse_espp_row(data: pd.Series) -> t.Optional[Purchase]:
     if data["Record Type"] == "Purchase":
         return Purchase(
             date=date_utils.parse_named_mon(data["Purchase Date"]),
@@ -37,21 +38,21 @@ def parse_espp_row(data):
         return None
 
 
-def parse_espp(xl):
+def parse_espp(xl: pd.ExcelFile) -> t.List[Purchase]:
     logger.debug_log(f"Currently parsing {espp_sheet_name} sheet")
     sheet_pd = xl.parse(sheet_name=espp_sheet_name, skiprows=0, header=0)
     purchases = []
-    for index, data in sheet_pd.iterrows():
+    for _, data in sheet_pd.iterrows():
         parsed_purchase = parse_espp_row(data)
         if parsed_purchase != None:
             purchases.append(parsed_purchase)
     return purchases
 
 
-def calculate_rsu_fmv(xl, date, grant):
+def calculate_rsu_fmv(xl: pd.ExcelFile, date, grant) -> float:
     sheet_pd = xl.parse(sheet_name=rsu_sheet_name, skiprows=0, header=0)
     vested_row = None
-    for index, data in sheet_pd.iterrows():
+    for _, data in sheet_pd.iterrows():
         if (
             data["Record Type"] == "Vest Schedule"
             and data["Vest Date"] == date
@@ -60,18 +61,16 @@ def calculate_rsu_fmv(xl, date, grant):
             vested_row = data
             continue
         elif data["Record Type"] == "Tax Withholding" and vested_row is not None:
-            a = data["Taxable Gain"]
-            b = vested_row["Vested Qty."]
-            fmv = data["Taxable Gain"] / vested_row["Vested Qty..1"]
+            fmv: float = data["Taxable Gain"] / vested_row["Vested Qty..1"]
             vested_row = None
             return fmv
 
     raise Exception(
-        f"Couldn NOT find FMV for share release at {date} and grant = {grant}"
+        f"Could NOT find FMV for share release at {date} and grant = {grant}"
     )
 
 
-def parse_rsu_row(data, xl, ticker):
+def parse_rsu_row(data: pd.Series, ticker: str) -> t.Optional[Purchase]:
     if data["Event Type"] == "Shares released":
         return Purchase(
             date=date_utils.parse_mm_dd(data["Date"]),
@@ -89,24 +88,24 @@ def parse_rsu_row(data, xl, ticker):
         return None
 
 
-def parse_rsu(xl):
+def parse_rsu(xl: pd.ExcelFile):
     logger.debug_log(f"Currently parsing {rsu_sheet_name} sheet")
     sheet_pd = xl.parse(sheet_name=rsu_sheet_name, skiprows=0, header=0)
-    purchases = []
+    purchases: t.List[Purchase] = []
     current_ticker = None
-    for index, data in sheet_pd.iterrows():
+    for _, data in sheet_pd.iterrows():
         if data["Record Type"] == "Grant":
-            current_ticker = current_ticker = data["Symbol"].lower()
-        parsed_purchase = parse_rsu_row(data, xl, current_ticker)
+            current_ticker = data["Symbol"].lower()
+        parsed_purchase = parse_rsu_row(data, current_ticker)
         if parsed_purchase != None:
             purchases.append(parsed_purchase)
     return purchases
 
 
-def parse(input_file_name, output_folder):
+def parse(input_file_abs_path: str, output_folder_abs_path: str) -> t.List[Purchase]:
     logger.debug = debug
-    purchases = []
-    with pd.ExcelFile(input_file_name, engine="openpyxl") as xl:
+    purchases: t.List[Purchase] = []
+    with pd.ExcelFile(input_file_abs_path, engine="openpyxl") as xl:
         sheet_names = xl.sheet_names
         logger.log(f"Total sheets being process {sheet_names}")
         if espp_sheet_name not in sheet_names and rsu_sheet_name not in sheet_names:
@@ -127,7 +126,7 @@ def parse(input_file_name, output_folder):
         key=lambda purchase: purchase.date["time_in_millis"],
     )
     file_utils.write_to_file(
-        output_folder,
+        output_folder_abs_path,
         "purchases.json",
         purchases,
         True,
