@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import sys, os
 import pandas as pd
 from datetime import datetime
@@ -11,6 +12,7 @@ import date_utils
 import logger
 
 
+@dataclass
 class RbiRateObj(t.TypedDict):
     time_in_millis: int
     rate: float
