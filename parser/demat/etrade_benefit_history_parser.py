@@ -1,6 +1,8 @@
+import operator
 import sys, os
 import pandas as pd
 import typing as t
+import itertools
 
 # from openpyxl import load_workbook
 
@@ -131,5 +133,13 @@ def parse(input_file_abs_path: str, output_folder_abs_path: str) -> t.List[Purch
         purchases,
         True,
     )
-    print(f"Total = {sum(map(lambda x:x.quantity, purchases))}")
+
+    ticker_shares_map: t.Dict[str, list[Purchase]] = {}
+    for ticker, ticker_purchases in itertools.groupby(
+        purchases, key=operator.attrgetter("ticker")
+    ):
+        ticker_shares_map[ticker] = list(ticker_purchases)
+        print(
+            f"{ticker}: Total shares present in the sheet = {sum(map(lambda x:x.quantity, ticker_shares_map[ticker]))}"
+        )
     return purchases

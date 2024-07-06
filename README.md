@@ -14,17 +14,17 @@ The script runs on Python3 make sure it is installed on the system
 
 Below example, the command runs the script with the downloaded `BenefitHistory.xlsx`
 ```sh
-./run.py -i "<absolute_folder_of_benifit_history_file>/BenefitHistory.xlsx" -ay 2023
+./run.py -i "<absolute_folder_of_benefit_history_file>/BenefitHistory.xlsx" -ay 2023
 ```
 You may also have to install the missing Python3 dependencies using command `pip3 install <dependency_name>`
 
 Detailed options are listed below
-```sh
+```txt
 usage: run.py [-h] [-o OUTPUT_FOLDER] -i INPUT_EXCEL_FILE [-m {etrade_benefit_history}] [-cal {calendar,financial}] -ay ASSESSMENT_YEAR [-v]
 
 This is a Python module to generate Indian ITR schedule FA under section A3 automatically
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   -o OUTPUT_FOLDER, --output OUTPUT_FOLDER
                         Specify the absolute path of the output folder for JSON data, default = <current_folder_path_of_the_script>
@@ -33,7 +33,7 @@ optional arguments:
   -m {etrade_benefit_history}, --source-mode {etrade_benefit_history}
                         Specify the source mode. Currently, only benefit history from etrade is supported, default = etrade_benefit_history
   -cal {calendar,financial}, --calendar-mode {calendar,financial}
-                        Specify the calendar duration for consideration, default = calendar
+                        Specify the calendar period for consideration, default = calendar
   -ay ASSESSMENT_YEAR, --assessment-year ASSESSMENT_YEAR
                         Current year of assessment year. For AY 2019-2020, input will be 2019. Input will be of type integer
   -v, --verbose         Enable the debug logs
@@ -47,7 +47,7 @@ contains entries related to `adbe` then the folder will be `output/adbe/fa_entri
 - Only parsing data from `BenefitHistory.xlsx` is supported.
 -  If you have sold any shares, the script will not adjust those. You have to subtract the `BenefitHistory.xlsx` manually
 -  This script is only tested under Mac, with a single `adbe` ticker with `calendar` `--calendar-mode` mode
--  Currently `historic_data` is only present for filing the ITR for AY2023-2024
+-  Currently script works based on `historic_data`. Share FMV values is  present in [data.csv][data csv file](check the first and last data in the file) and [rates.xls][SBI rates] for RBI rate conversion
 
 # Author
 [Atul Gupta](https://github.com/atulgpt)
@@ -55,3 +55,6 @@ contains entries related to `adbe` then the folder will be `output/adbe/fa_entri
 # Disclaimer
 In case of any issues, please create a bug report. Also, do not entirely depend on the script for ITR filing. Do your own due diligence before filing your ITR.
 
+
+ [data csv file]: https://github.com/atulgpt/SeFA/blob/main/historic_data/shares/adbe/data.csv
+ [SBI rates]: https://github.com/atulgpt/SeFA/blob/main/historic_data/rates/rbi/rates.xls

@@ -54,23 +54,31 @@ def parse_org_purchases(
     #     print(f"a = {a.quantity} on da = {t}")
 
     previous_sum = sum(map(lambda purchase: purchase.quantity, before_purchases))
-    print(f"previous existing share total quantity({ticker}) = {previous_sum}")
+    print(
+        f"{ticker}: Previous period(before {date_utils.display_time(start_time_in_ms)}) total share = {previous_sum}"
+    )
 
     after_sum = sum(map(lambda purchase: purchase.quantity, after_purchases))
-    print(f"this financial year total quantity({ticker}) = {after_sum}")
+    print(
+        f"{ticker}: This period(from {date_utils.display_time(start_time_in_ms)} to {date_utils.display_time(end_time_in_ms)}) total share = {after_sum}"
+    )
 
-    fa_entries = []
-    before_purchase_date = date_utils.parse_mm_dd(f"12/30/{assessment_year - 2}")
-    closing_rbi_rate = rbi_rates_utils.get_rate_at_time_in_ms(
+    fa_entries: t.List[FAA3] = []
+    before_purchases_last_date = f"31-Dec-{assessment_year - 2}"
+    before_purchase_date = date_utils.parse_named_mon(before_purchases_last_date)
+    closing_rbi_rate = rbi_rates_utils.get_rate_for_prev_mon_for_time_in_ms(
         currency_code, end_time_in_ms
     )
-    closing_share_price = share_data_utils.closing_price(ticker, end_time_in_ms)
+    closing_share_price = share_data_utils.get_closing_price(ticker, end_time_in_ms)
     closing_inr_price = closing_share_price * closing_rbi_rate
     print(
-        f"Closing price(INR) = {closing_inr_price}, closing_share_price = {closing_share_price} closing_rbi_rate = {closing_rbi_rate}"
+        f"{ticker}: Closing price(INR) = {closing_inr_price}, closing_share_price({ticker_currency_info[ticker]}) = {closing_share_price} closing_rbi_rate(INR) = {closing_rbi_rate}"
     )
     fmv_price_on_start = share_data_utils.get_fmv(
         ticker, before_purchase_date["time_in_millis"]
+    )
+    print(
+        f"{ticker}: Queried FMV on {before_purchases_last_date} is {fmv_price_on_start}. This is used for accumulated sum for previous purchases"
     )
     if previous_sum != 0:
         fa_entries.append(
@@ -87,11 +95,11 @@ def parse_org_purchases(
                 ),
                 purchase_price=previous_sum
                 * fmv_price_on_start
-                * rbi_rates_utils.get_rate_at_time_in_ms(
+                * rbi_rates_utils.get_rate_for_prev_mon_for_time_in_ms(
                     currency_code, start_time_in_ms
                 ),
                 peak_price=previous_sum
-                * share_data_utils.peak_price_in_inr(
+                * share_data_utils.get_peak_price_in_inr(
                     ticker, start_time_in_ms, end_time_in_ms
                 ),
                 closing_price=previous_sum * closing_inr_price,
@@ -104,14 +112,14 @@ def parse_org_purchases(
                 org,
                 purchase=purchase,
                 peak_price=purchase.quantity
-                * share_data_utils.peak_price_in_inr(
+                * share_data_utils.get_peak_price_in_inr(
                     ticker,
                     purchase.date["time_in_millis"],
                     end_time_in_ms,
                 ),
                 purchase_price=purchase.quantity
                 * purchase.purchase_fmv.price
-                * rbi_rates_utils.get_rate_at_time_in_ms(
+                * rbi_rates_utils.get_rate_for_prev_mon_for_time_in_ms(
                     currency_code, purchase.date["time_in_millis"]
                 ),
                 closing_price=purchase.quantity * closing_inr_price,

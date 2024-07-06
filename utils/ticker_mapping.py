@@ -18,5 +18,5 @@ ticker_org_info: t.Dict[str, Organization] = {
 }
 
 ticker_currency_info: t.Dict[str, str] = {
-    "adbe": "usd",
+    "adbe": "USD",
 }

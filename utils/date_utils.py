@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import typing as t
 
+one_day_in_ms = 24 * 60 * 60 * 1000
 
 def epoch_in_ms(dt) -> int:
     epoch = datetime.utcfromtimestamp(0)
@@ -28,8 +29,8 @@ def display_time(time_in_ms: int) -> str:
     return dt.strftime("%d-%b-%Y")
 
 
-def log_timestamp(time_in_ms) -> str:
-    return f"{display_time(time_in_ms)}(time in millis = {time_in_ms})"
+def log_timestamp(time_in_ms: int) -> str:
+    return f"{display_time(time_in_ms)}(time in ms = {time_in_ms})"
 
 
 def parse_named_mon(date_str: str) -> DateObj:
@@ -45,14 +46,6 @@ def parse_mm_dd(date_str: str) -> DateObj:
     Parses formats like 04/15/2021 in time from epoch in milliseconds
     """
     date_time = datetime.strptime(date_str, "%m/%d/%Y")
-    return __create_date_object(date_time, date_str)
-
-
-def parse_dd_mm(date_str) -> DateObj:
-    """
-    Parses formats like 31 Mar 2023 in time from epoch in milliseconds
-    """
-    date_time = datetime.strptime(date_str, "%d %b %Y")
     return __create_date_object(date_time, date_str)
 
 

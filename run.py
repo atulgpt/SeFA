@@ -62,7 +62,7 @@ def main():
         default=default_calendar_mode,
         dest="calendar_mode",
         choices=[f"{default_calendar_mode}", "financial"],
-        help=f"Specify the calendar duration for consideration, default = {default_calendar_mode}",
+        help=f"Specify the calendar period for consideration, default = {default_calendar_mode}",
     )
     parser.add_argument(
         "-ay",

@@ -19,11 +19,11 @@ class RbiRateObj(t.TypedDict):
 RbiYearMonthRateMap = t.Dict[int, t.Dict[int, RbiRateObj]]
 RbiCurrencyToRateMap = t.Dict[str, RbiYearMonthRateMap]
 
-rate_map: RbiCurrencyToRateMap = {}
+rate_map_cache: RbiCurrencyToRateMap = {}
 
 
 def __init_map(currency_code: str) -> RbiYearMonthRateMap:
-    if currency_code not in rate_map:
+    if currency_code not in rate_map_cache:
         print(f"Parsing rbi rate for currency code = {currency_code}")
         currency_rate_map: RbiYearMonthRateMap = {}
         script_path = os.path.realpath(os.path.dirname(__file__))
@@ -61,16 +61,18 @@ def __init_map(currency_code: str) -> RbiYearMonthRateMap:
                             "rate": data["Rate"],
                         }
 
-            rate_map[currency_code] = currency_rate_map
+            rate_map_cache[currency_code] = currency_rate_map
 
-    return rate_map[currency_code]
+    return rate_map_cache[currency_code]
 
 
 def get_rate_at_month(currency_code: str, month: int, year: int) -> float:
-    rate_month, rate_year = (month - 1, year) if month != 1 else (12, year - 1)
-    return __init_map(currency_code)[rate_year][rate_month]["rate"]
+    return __init_map(currency_code)[year][month]["rate"]
 
 
-def get_rate_at_time_in_ms(currency_code: str, time_in_ms: int) -> float:
+def get_rate_for_prev_mon_for_time_in_ms(currency_code: str, time_in_ms: int) -> float:
     dt = datetime.utcfromtimestamp(time_in_ms / 1000)
-    return get_rate_at_month(currency_code, dt.month, dt.year)
+    month = dt.month
+    year = dt.year
+    rate_month, rate_year = (month - 1, year) if month != 1 else (12, year - 1)
+    return get_rate_at_month(currency_code, rate_month, rate_year)
