@@ -14,6 +14,7 @@ sys.path.insert(1, os.path.join(script_folder, "models"))
 sys.path.insert(1, os.path.join(script_folder, "models", "itr"))
 import logger
 import etrade_benefit_history_parser
+import etrade_holdings_bystatus_parser
 import faa3_parser
 
 # arguments defaults
@@ -51,8 +52,8 @@ def main():
         action="store",
         default=default_source_mode,
         dest="source_mode",
-        choices=[f"{default_source_mode}"],
-        help=f"Specify the source mode. Currently, only benefit history from etrade is supported, default = {default_source_mode}",
+        choices=[f"{default_source_mode}","etrade_holdings_bystatus"],
+        help=f"Specify the source mode, default = {default_source_mode}",
     )
     parser.add_argument(
         "-cal",
@@ -86,10 +87,16 @@ def main():
 
     logger.debug = args.debug
     etrade_benefit_history_parser.debug = args.debug
+    etrade_holdings_bystatus_parser.debug = args.debug
 
-    purchases = etrade_benefit_history_parser.parse(
-        args.input_excel_file, args.output_folder
-    )
+    if args.source_mode == "etrade_holdings_bystatus":
+        purchases = etrade_holdings_bystatus_parser.parse(
+            args.input_excel_file, args.output_folder
+        )
+    else:
+        purchases = etrade_benefit_history_parser.parse(
+            args.input_excel_file, args.output_folder
+        )
 
     faa3_parser.parse(
         args.calendar_mode, purchases, args.assessment_year, args.output_folder
