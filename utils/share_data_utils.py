@@ -171,7 +171,7 @@ def get_peak_price_in_inr(
     )
 
     logger.log(
-        f"Peak price for ticker = {ticker} from {date_utils.display_time(start_time_in_ms)} to {date_utils.display_time(end_time_in_ms)} is {peak_price_in_inr} INR at rate {max_value["inr_rate"]} INR/USD"
+        f"Peak price for ticker = {ticker} from {date_utils.display_time(start_time_in_ms)} to {date_utils.display_time(end_time_in_ms)} is {peak_price_in_inr} INR at rate {max_value['inr_rate']} INR/USD"
     )
 
     return max_value["fmv"] * max_value["inr_rate"]

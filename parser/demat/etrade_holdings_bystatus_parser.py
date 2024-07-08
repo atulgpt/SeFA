@@ -23,12 +23,13 @@ from purchase import Purchase, Price
 
 sellable_sheet_name = "Sellable"
 
+
 def parse_sellable_row(data: pd.Series) -> t.Optional[Purchase]:
-    logger.debug_log(f"Currently parsing {type(data["Date Acquired"])} row")
+    logger.debug_log(f"Currently parsing {type(data['Date Acquired'])} row")
     # skip this row if there is no date or date is not a string
     if data["Date Acquired"] == None or not isinstance(data["Date Acquired"], str):
         return None
-    
+
     return Purchase(
         date=date_utils.parse_named_mon(data["Date Acquired"]),
         purchase_fmv=Price(
@@ -38,6 +39,7 @@ def parse_sellable_row(data: pd.Series) -> t.Optional[Purchase]:
         quantity=data["Sellable Qty."],
         ticker=data["Symbol"].lower(),
     )
+
 
 def parse_sellable(xl: pd.ExcelFile) -> t.List[Purchase]:
     logger.debug_log(f"Currently parsing {sellable_sheet_name} sheet")
@@ -57,18 +59,16 @@ def parse(input_file_abs_path: str, output_folder_abs_path: str) -> t.List[Purch
         sheet_names = xl.sheet_names
         logger.log(f"Total sheets being process {sheet_names}")
         if sellable_sheet_name not in sheet_names:
-            logger.log(
-                f"Excel sheet don't have either {sellable_sheet_name}"
-            )
+            logger.log(f"Excel sheet don't have either {sellable_sheet_name}")
             return []
         purchases = parse_sellable(xl)
 
         # logger.log_json(espp_purchases)
         # logger.log_json(rsu_purchases)
 
-    #purchases.sort(
+    # purchases.sort(
     #    key=lambda purchase: purchase.date["time_in_millis"],
-    #)
+    # )
     file_utils.write_to_file(
         output_folder_abs_path,
         "purchases.json",
