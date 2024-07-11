@@ -1,5 +1,8 @@
 from dataclasses import dataclass
 import os
+from utils.runtime_utils import warn_missing_module
+
+warn_missing_module("pandas")
 import pandas as pd
 from datetime import datetime
 import typing as t

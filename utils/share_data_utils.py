@@ -1,3 +1,6 @@
+from utils.runtime_utils import warn_missing_module
+
+warn_missing_module("pandas")
 import pandas as pd
 import os
 import typing as t

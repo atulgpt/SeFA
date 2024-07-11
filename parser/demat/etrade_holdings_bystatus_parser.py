@@ -1,4 +1,7 @@
 import operator
+from utils.runtime_utils import warn_missing_module
+
+warn_missing_module("pandas")
 import pandas as pd
 import typing as t
 import itertools
