@@ -1,14 +1,10 @@
 import pandas as pd
-import os, sys
+import os
 import typing as t
-import date_utils
-import logger
-from ticker_mapping import ticker_currency_info
 
-script_path = os.path.realpath(__file__)
-script_folder = os.path.dirname(script_path)
-sys.path.insert(1, os.path.join(script_folder, "rates"))
-import rbi_rates_utils
+from . import date_utils, logger
+from .ticker_mapping import ticker_currency_info
+from .rates import rbi_rates_utils
 
 
 def __validate_dates(

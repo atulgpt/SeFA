@@ -1,6 +1,6 @@
 from dataclasses import dataclass
-from org import Organization
-from purchase import Purchase
+from models.org import Organization
+from models.purchase import Purchase
 
 
 @dataclass

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from date_utils import DateObj
+from utils.date_utils import DateObj
 
 
 @dataclass

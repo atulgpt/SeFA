@@ -4,18 +4,9 @@ import os
 import sys
 import traceback
 
-script_path = os.path.realpath(__file__)
-script_folder = os.path.dirname(script_path)
-sys.path.insert(1, os.path.join(script_folder, "utils"))
-sys.path.insert(1, os.path.join(script_folder, "utils", "rates"))
-sys.path.insert(1, os.path.join(script_folder, "parser", "demat"))
-sys.path.insert(1, os.path.join(script_folder, "parser", "itr"))
-sys.path.insert(1, os.path.join(script_folder, "models"))
-sys.path.insert(1, os.path.join(script_folder, "models", "itr"))
-import logger
-import etrade_benefit_history_parser
-import etrade_holdings_bystatus_parser
-import faa3_parser
+from utils import logger
+from parser.demat import etrade_benefit_history_parser, etrade_holdings_bystatus_parser
+from parser.itr import faa3_parser
 
 # arguments defaults
 script_path = os.path.realpath(os.path.dirname(__file__))
@@ -52,7 +43,7 @@ def main():
         action="store",
         default=default_source_mode,
         dest="source_mode",
-        choices=[f"{default_source_mode}","etrade_holdings_bystatus"],
+        choices=[f"{default_source_mode}", "etrade_holdings_bystatus"],
         help=f"Specify the source mode, default = {default_source_mode}",
     )
     parser.add_argument(

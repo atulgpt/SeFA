@@ -1,11 +1,6 @@
-import sys, os
 import typing as t
 
-script_path = os.path.realpath(__file__)
-script_folder = os.path.dirname(script_path)
-top_folder = os.path.dirname(script_folder)
-sys.path.insert(1, os.path.join(top_folder, "models"))
-from org import Organization
+from models.org import Organization
 
 ticker_org_info: t.Dict[str, Organization] = {
     "adbe": Organization(
@@ -19,4 +14,6 @@ ticker_org_info: t.Dict[str, Organization] = {
 
 ticker_currency_info: t.Dict[str, str] = {
     "adbe": "USD",
+    "msft": "USD",
+    "crm": "USD",
 }

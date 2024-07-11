@@ -1,27 +1,13 @@
-import sys
 import os
 import typing as t
-
-script_path = os.path.realpath(__file__)
-script_folder = os.path.dirname(script_path)
-top_folder = os.path.dirname(os.path.dirname(script_folder))
-sys.path.insert(1, os.path.join(top_folder, "utils"))
-from ticker_mapping import ticker_org_info, ticker_currency_info
-import date_utils
-import share_data_utils
-import file_utils
-
-sys.path.insert(1, os.path.join(top_folder, "utils", "rates"))
-import rbi_rates_utils
-
-sys.path.insert(1, os.path.join(top_folder, "models"))
-from purchase import Purchase, Price
-
-sys.path.insert(1, os.path.join(top_folder, "models", "itr"))
-from faa3 import FAA3
-
 from itertools import groupby
 import operator
+
+from utils import date_utils, share_data_utils, file_utils
+from utils.ticker_mapping import ticker_org_info, ticker_currency_info
+from utils.rates import rbi_rates_utils
+from models.purchase import Purchase, Price
+from models.itr.faa3 import FAA3
 
 
 def parse_org_purchases(

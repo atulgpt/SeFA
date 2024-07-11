@@ -1,5 +1,4 @@
 import operator
-import sys, os
 import pandas as pd
 import typing as t
 import itertools
@@ -8,18 +7,10 @@ import itertools
 
 debug = False
 
-script_path = os.path.realpath(__file__)
-script_folder = os.path.dirname(script_path)
-top_folder = os.path.dirname(os.path.dirname(script_folder))
-sys.path.insert(1, os.path.join(top_folder, "utils"))
-from ticker_mapping import ticker_currency_info
-import logger
-import file_utils
-import date_utils
-import share_data_utils
+from utils.ticker_mapping import ticker_currency_info
+from utils import logger, file_utils, date_utils
 
-sys.path.insert(1, os.path.join(top_folder, "models"))
-from purchase import Purchase, Price
+from models.purchase import Purchase, Price
 
 sellable_sheet_name = "Sellable"
 

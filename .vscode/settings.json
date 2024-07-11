@@ -14,12 +14,4 @@
     "skiprows",
     "witholding"
   ],
-  "python.analysis.extraPaths": [
-    "./utils",
-    "./utils/rates",
-    "./parser/demat",
-    "./parser/itr",
-    "./models",
-    "./models/itr"
-  ]
 }

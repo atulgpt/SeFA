@@ -1,15 +1,10 @@
 from dataclasses import dataclass
-import sys, os
+import os
 import pandas as pd
 from datetime import datetime
 import typing as t
 
-script_path = os.path.realpath(__file__)
-script_folder = os.path.dirname(script_path)
-top_folder = os.path.dirname(os.path.dirname(script_folder))
-sys.path.insert(1, os.path.join(top_folder, "utils"))
-import date_utils
-import logger
+from .. import date_utils, logger
 
 
 @dataclass
