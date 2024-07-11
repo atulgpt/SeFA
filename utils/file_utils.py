@@ -5,10 +5,10 @@ import typing as t
 
 
 class MapEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, map):
-            return list(obj)
-        return json.JSONEncoder.default(self, obj)
+    def default(self, o):
+        if isinstance(o, map):
+            return list(o)
+        return json.JSONEncoder.default(self, o)
 
 
 def write_to_file(
@@ -24,10 +24,10 @@ def write_to_file(
     final_file_abs_path = os.path.join(output_folder_abs_path, file_name)
 
     if os.path.exists(final_file_abs_path) and not override:
-        raise Exception(
+        raise AssertionError(
             f"Path {final_file_abs_path} already exists and force(-f) flag is not added to delete the path"
         )
-    with open(final_file_abs_path, "w") as f:
+    with open(final_file_abs_path, "w", encoding="utf-8") as f:
         f.write(
             json.dumps(
                 obj,
@@ -57,10 +57,10 @@ def write_csv_to_file(
 
     final_file_abs_path = os.path.join(output_file_abs_path, file_name)
     if os.path.exists(final_file_abs_path) and not override:
-        raise Exception(
+        raise AssertionError(
             f"Path {final_file_abs_path} already exists and force(-f) flag is not added to delete the path"
         )
-    with open(final_file_abs_path, "w", newline="") as file:
+    with open(final_file_abs_path, "w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file, delimiter=",", quoting=csv.QUOTE_MINIMAL)
         writer.writerow(keys)
         for obj in objs:

@@ -1,7 +1,7 @@
 import pprint
 import json
 
-debug = False
+DEBUG = False
 
 
 def __print_json(json_data):
@@ -10,7 +10,7 @@ def __print_json(json_data):
 
 
 def debug_log_json(obj):
-    if debug:
+    if DEBUG:
         __print_json(obj)
 
 
@@ -24,7 +24,7 @@ def __print_pretty(msg):
 
 
 def debug_log(msg):
-    if debug:
+    if DEBUG:
         __print_pretty(msg)
 
 

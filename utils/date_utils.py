@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import typing as t
 
-one_day_in_ms = 24 * 60 * 60 * 1000
+ONE_DAY_IN_MS = 24 * 60 * 60 * 1000
 
 def epoch_in_ms(dt) -> int:
     epoch = datetime.utcfromtimestamp(0)
@@ -79,7 +79,7 @@ def calendar_range(calendar_mode: str, year: int) -> t.Tuple[int, int]:
         start_time_in_ms = epoch_in_ms(datetime(year=year - 1, day=1, month=4))
         end_time_in_ms = epoch_in_ms(datetime(year=year, day=31, month=3))
     else:
-        raise Exception(
+        raise AssertionError(
             f"Unsupported calendar_mode = {calendar_mode} for year = {year}"
         )
     return (start_time_in_ms, end_time_in_ms)

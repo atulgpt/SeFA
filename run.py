@@ -10,10 +10,10 @@ from parser.itr import faa3_parser
 
 # arguments defaults
 script_path = os.path.realpath(os.path.dirname(__file__))
-default_output_folder_name = "output"
-default_output_folder_abs_path = os.path.join(script_path, default_output_folder_name)
-default_source_mode = "etrade_benefit_history"
-default_calendar_mode = "calendar"
+DEFAULT_OUTPUT_FOLDER_NAME = "output"
+default_output_folder_abs_path = os.path.join(script_path, DEFAULT_OUTPUT_FOLDER_NAME)
+DEFAULT_SOURCE_MODE = "etrade_benefit_history"
+DEFAULT_CALENDER_MODE = "calendar"
 
 
 def main():
@@ -41,20 +41,20 @@ def main():
         "-m",
         "--source-mode",
         action="store",
-        default=default_source_mode,
+        default=DEFAULT_SOURCE_MODE,
         dest="source_mode",
-        choices=[f"{default_source_mode}", "etrade_holdings_bystatus"],
-        help=f"Specify the source mode, default = {default_source_mode}",
+        choices=[f"{DEFAULT_SOURCE_MODE}", "etrade_holdings_bystatus"],
+        help=f"Specify the source mode, default = {DEFAULT_SOURCE_MODE}",
     )
     parser.add_argument(
         "-cal",
         "--calendar-mode",
         action="store",
         type=str,
-        default=default_calendar_mode,
+        default=DEFAULT_CALENDER_MODE,
         dest="calendar_mode",
-        choices=[f"{default_calendar_mode}", "financial"],
-        help=f"Specify the calendar period for consideration, default = {default_calendar_mode}",
+        choices=[f"{DEFAULT_CALENDER_MODE}", "financial"],
+        help=f"Specify the calendar period for consideration, default = {DEFAULT_CALENDER_MODE}",
     )
     parser.add_argument(
         "-ay",
@@ -63,7 +63,7 @@ def main():
         dest="assessment_year",
         type=int,
         required=True,
-        help=f"Current year of assessment year. For AY 2019-2020, input will be 2019. Input will be of type integer",
+        help="Current year of assessment year. For AY 2019-2020, input will be 2019. Input will be of type integer",
     )
     parser.add_argument(
         "-v",
@@ -76,9 +76,9 @@ def main():
 
     args = parser.parse_args()
 
-    logger.debug = args.debug
-    etrade_benefit_history_parser.debug = args.debug
-    etrade_holdings_bystatus_parser.debug = args.debug
+    logger.DEBUG = args.debug
+    etrade_benefit_history_parser.DEBUG = args.debug
+    etrade_holdings_bystatus_parser.DEBUG = args.debug
 
     if args.source_mode == "etrade_holdings_bystatus":
         purchases = etrade_holdings_bystatus_parser.parse(

@@ -16,7 +16,7 @@ def __validate_dates(
     used_fmv_time_in_ms: int,
 ):
     if historic_entry_time_in_ms > desired_purchase_time_in_ms:
-        raise Exception(
+        raise AssertionError(
             f"Historical FMV date {date_utils.log_timestamp(historic_entry_time_in_ms)} can NOT be newer than purchase date = {date_utils.log_timestamp(desired_purchase_time_in_ms)}"
         )
     days_diff = (
@@ -66,7 +66,7 @@ def __init_map(ticker: str) -> t.List[TimedFmv]:
             "data.csv",
         )
         if not os.path.exists(historic_share_path):
-            raise Exception(
+            raise AssertionError(
                 f"Historic share data for share {ticker} NOT present at {historic_share_path}"
             )
         df = pd.read_csv(historic_share_path)
@@ -103,7 +103,7 @@ def get_fmv(ticker: str, purchase_time_in_ms: int) -> float:
 
         previous_entry_data = entry_data
 
-    raise Exception(
+    raise AssertionError(
         f"Could NOT find FMV for share release at {date_utils.log_timestamp(purchase_time_in_ms)} and ticker = {ticker}"
     )
 
@@ -127,7 +127,7 @@ def get_peak_price_in_inr(
     ticker: str, start_time_in_ms: int, end_time_in_ms: int
 ) -> float:
     if start_time_in_ms > end_time_in_ms:
-        raise Exception(
+        raise AssertionError(
             f"start_time_in_ms = {start_time_in_ms} is greater than equal to end_time_in_ms = {end_time_in_ms}"
         )
 

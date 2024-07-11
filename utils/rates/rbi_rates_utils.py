@@ -37,10 +37,10 @@ def __init_map(currency_code: str) -> RbiYearMonthRateMap:
             "rates.xls",
         )
         if not os.path.exists(rbi_rates_file_abs_path):
-            raise Exception(f"RBI rates.xls {rbi_rates_file_abs_path} is NOT present")
+            raise AssertionError(f"RBI rates.xls {rbi_rates_file_abs_path} is NOT present")
 
         with pd.ExcelFile(rbi_rates_file_abs_path, engine="openpyxl") as xl:
-            logger.debug_log(f"Currently parsing Reference Rates sheet")
+            logger.debug_log("Currently parsing Reference Rates sheet")
             sheet_pd = xl.parse(sheet_name="Reference Rates", skiprows=0, header=2)
             for _, data in sheet_pd.iterrows():
                 if data["Currency Pairs"] == f"INR / 1 {currency_code.upper()}":
