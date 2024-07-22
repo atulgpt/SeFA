@@ -34,7 +34,7 @@ def main():
         "--input",
         action="store",
         dest="input_excel_file",
-        help=f"Specify the absolute path for input benefit history(BenefitHistory.xlsx) Excel file",
+        help="Specify the absolute path for input benefit history(BenefitHistory.xlsx) Excel file",
         required=True,
     )
     parser.add_argument(
@@ -100,6 +100,4 @@ if __name__ == "__main__":
         logger.log("On your left!")
     except KeyboardInterrupt:
         logger.log("Interrupt requested... exiting")
-    except Exception:
-        traceback.print_exc(file=sys.stdout)
     sys.exit(0)

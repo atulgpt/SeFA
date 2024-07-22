@@ -26,7 +26,7 @@ def parse_espp_row(data: pd.Series) -> t.Optional[Purchase]:
                 float(data["Purchase Date FMV"][1:]),
                 ticker_currency_info[data["Symbol"].lower()],
             ),
-            quantity=data["Sellable Qty."],
+            quantity=float(data["Sellable Qty."]),
             ticker=data["Symbol"].lower(),
         )
     return None
@@ -43,40 +43,19 @@ def parse_espp(xl: pd.ExcelFile) -> t.List[Purchase]:
     return purchases
 
 
-def calculate_rsu_fmv(xl: pd.ExcelFile, date, grant) -> float:
-    sheet_pd = xl.parse(sheet_name=RSU_SHEET_NAME, skiprows=0, header=0)
-    vested_row = None
-    for _, data in sheet_pd.iterrows():
-        if (
-            data["Record Type"] == "Vest Schedule"
-            and data["Vest Date"] == date
-            and data["Grant Number"] == grant
-        ):
-            vested_row = data
-            continue
-        if data["Record Type"] == "Tax Withholding" and vested_row is not None:
-            fmv: float = data["Taxable Gain"] / vested_row["Vested Qty..1"]
-            vested_row = None
-            return fmv
-
-    raise AssertionError(
-        f"Could NOT find FMV for share release at {date} and grant = {grant}"
-    )
-
-
 def parse_rsu_row(data: pd.Series, ticker: str) -> t.Optional[Purchase]:
     if data["Event Type"] == "Shares released":
+        ticker_in_lower = ticker.lower()
         return Purchase(
             date=date_utils.parse_mm_dd(data["Date"]),
             purchase_fmv=Price(
                 share_data_utils.get_fmv(
-                    ticker, date_utils.parse_mm_dd(data["Date"])["time_in_millis"]
+                    ticker_in_lower, date_utils.parse_mm_dd(data["Date"])["time_in_millis"]
                 ),
-                # calculate_rsu_fmv(xl, data["Date"], data["Grant Number"]),
-                ticker_currency_info[ticker],
+                ticker_currency_info[ticker_in_lower],
             ),
             quantity=data["Qty. or Amount"],
-            ticker=ticker,
+            ticker=ticker_in_lower,
         )
     return None
 
@@ -89,9 +68,14 @@ def parse_rsu(xl: pd.ExcelFile):
     for _, data in sheet_pd.iterrows():
         if data["Record Type"] == "Grant":
             current_ticker = data["Symbol"].lower()
-        parsed_purchase = parse_rsu_row(data, current_ticker)
-        if parsed_purchase is not None:
-            purchases.append(parsed_purchase)
+        if data["Event Type"] == "Shares released":
+            assert current_ticker is not None, (
+                "There is RSU event without Grant event(which contains the ticker info)"
+                + f" hence no ticker info is found while parsing {RSU_SHEET_NAME}"
+            )
+            parsed_purchase = parse_rsu_row(data, current_ticker)
+            if parsed_purchase is not None:
+                purchases.append(parsed_purchase)
     return purchases
 
 
