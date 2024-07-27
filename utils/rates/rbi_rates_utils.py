@@ -11,7 +11,7 @@ from .. import date_utils, logger
 
 
 @dataclass
-class RbiRateObj(t.TypedDict):
+class RbiRateObj():
     time_in_millis: int
     rate: float
 

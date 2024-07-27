@@ -3,14 +3,14 @@ Python module to generate Indian ITR schedule FA under section A3 automatically
 
 # How to run
 ## Download `BenefitHistory.xlsx` from `ETRADE`
-1. Click on `Stock Plan` top menu bar
+1. Click on `At Work` top menu bar
 2. Click on `Holdings` top submenu bar
 3. Click on `Benefit History` link either on `Employee Stock Purchase Plan (ESPP)` or `Restricted Stock (RS)`
 4. Click on `Download` button which will open the popup.
 5. Click on `Download Expanded` which will prompt you to download the `BenefitHistory.xlsx` file
 
 ## Run the script
-The script runs on Python3 make sure it is installed on the system
+The script requires Python 3.8 or higher. Please ensure that it is installed on your system. In newer versions of Python, you may encounter an [`externally-managed-environment`](https://peps.python.org/pep-0668/). In this case, you can create a [Python virtual environment](https://docs.python.org/3/library/venv.html#creating-virtual-environments) and then run the script after activating the virtual environment.
 
 Below example, the command runs the script with the downloaded `BenefitHistory.xlsx`
 ```sh
