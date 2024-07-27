@@ -1,5 +1,5 @@
 import pytest
-from parser.demat import etrade_benefit_history_parser
+from parser.demat.etrade import etrade_benefit_history_parser
 from unittest.mock import MagicMock
 import pandas as pd
 

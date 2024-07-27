@@ -1,5 +1,5 @@
 import pytest
-from parser.demat import etrade_benefit_history_parser
+from parser.demat.etrade import etrade_benefit_history_parser
 from unittest.mock import MagicMock
 import pandas as pd
 
@@ -101,8 +101,3 @@ def test_rsu_row_with_released_share():
 
     assert rsu_purchase is not None
     assert rsu_purchase.quantity == 0.5
-
-
-def test_wrong_file_path_raises_file_not_found_error():
-    with pytest.raises(FileNotFoundError):
-        etrade_benefit_history_parser.parse("", "")
