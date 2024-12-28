@@ -2,10 +2,10 @@
 import argparse
 import os
 import sys
-import traceback
 
+from parser.demat.etrade import etrade_benefit_history_parser
 from utils import logger
-from parser.demat import etrade_benefit_history_parser, etrade_holdings_bystatus_parser
+from parser.demat.etrade import etrade_holdings_bystatus_parser
 from parser.itr import faa3_parser
 
 # arguments defaults

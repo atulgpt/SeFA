@@ -1,9 +1,14 @@
+[project]
+name = "SeFA"
+version = "0.0.1"
+
 [tool.pylint]
 # Configuration for Pylint
 
 # Disable specific messages
 disable = [
     "missing-docstring", # Disable missing docstring warnings
+    "missing-module-docstring",
     "wrong-import-order",
     "wrong-import-position"
 ]

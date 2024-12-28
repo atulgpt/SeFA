@@ -1,40 +1,6 @@
-import pytest
-from parser.demat import etrade_benefit_history_parser
-from unittest.mock import MagicMock
+from parser.demat.etrade import etrade_benefit_history_parser
+from models.itr import faa3
 import pandas as pd
-
-
-def create_espp_mock(data_frame_obj) -> MagicMock:
-    mock_excel_file = MagicMock(spec=pd.ExcelFile)
-    mock_excel_file.parse.return_value = pd.DataFrame(data_frame_obj)
-    mock_excel_file.sheet_names = [etrade_benefit_history_parser.ESPP_SHEET_NAME]
-    return mock_excel_file
-
-
-@pytest.fixture(name="benefit_history_excel_file_with_no_purchase_espp")
-def fixture_benefit_history_excel_file_with_no_purchase_espp():
-    return create_espp_mock(
-        {
-            "Record Type": [],
-            "Symbol": [],
-            "Event Type": [],
-        }
-    )
-
-
-@pytest.fixture(name="benefit_history_excel_file_with_vested_and_released_espp")
-def fixture_benefit_history_excel_file_with_vested_and_released_espp():
-    return create_espp_mock(
-        {
-            "Record Type": ["Purchase", "Event", "Event"],
-            "Symbol": ["ADBE", "", ""],
-            "Purchase Date": ["30-JUN-2020", "", ""],
-            "Sellable Qty.": ["2", None, None],
-            "Qty. or Amount": [None, 0.5, 0.5],
-            "Purchase Date FMV": ["$435.31", None, None],
-        }
-    )
-
 
 def test_espp_parsing_with_no_purchase(
     benefit_history_excel_file_with_no_purchase_espp: pd.ExcelFile,

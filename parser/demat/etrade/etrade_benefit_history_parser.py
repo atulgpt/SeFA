@@ -50,7 +50,8 @@ def parse_rsu_row(data: pd.Series, ticker: str) -> t.Optional[Purchase]:
             date=date_utils.parse_mm_dd(data["Date"]),
             purchase_fmv=Price(
                 share_data_utils.get_fmv(
-                    ticker_in_lower, date_utils.parse_mm_dd(data["Date"])["time_in_millis"]
+                    ticker_in_lower,
+                    date_utils.parse_mm_dd(data["Date"])["time_in_millis"],
                 ),
                 ticker_currency_info[ticker_in_lower],
             ),
@@ -115,6 +116,7 @@ def parse(input_file_abs_path: str, output_folder_abs_path: str) -> t.List[Purch
     ):
         ticker_shares_map[ticker] = list(ticker_purchases)
         print(
-            f"{ticker}: Total shares present in the sheet = {sum(map(lambda x:x.quantity, ticker_shares_map[ticker]))}"
+            f"{ticker}: Total shares present in the sheet "
+            + f"= {sum(map(lambda x:x.quantity, ticker_shares_map[ticker]))}"
         )
     return purchases
