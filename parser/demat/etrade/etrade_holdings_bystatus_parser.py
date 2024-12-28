@@ -75,6 +75,7 @@ def parse(input_file_abs_path: str, output_folder_abs_path: str) -> t.List[Purch
     ):
         ticker_shares_map[ticker] = list(ticker_purchases)
         print(
-            f"{ticker}: Total shares present in the sheet = {sum(map(lambda x:x.quantity, ticker_shares_map[ticker]))}"
+            f"{ticker}: Total shares present in the "
+            + f"sheet = {sum(map(lambda x:x.quantity, ticker_shares_map[ticker]))}"
         )
     return purchases

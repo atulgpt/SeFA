@@ -1,38 +1,8 @@
 import pytest
 from parser.demat.etrade import etrade_benefit_history_parser
-from unittest.mock import MagicMock
 import pandas as pd
 
-
-def create_rsu_mock(data_frame_obj) -> MagicMock:
-    mock_excel_file = MagicMock(spec=pd.ExcelFile)
-    mock_excel_file.parse.return_value = pd.DataFrame(data_frame_obj)
-    mock_excel_file.sheet_names = [etrade_benefit_history_parser.RSU_SHEET_NAME]
-    return mock_excel_file
-
-
-@pytest.fixture(name="benefit_history_excel_file_with_vested_rsu")
-def fixture_benefit_history_excel_file_with_vested_rsu():
-    return create_rsu_mock(
-        {
-            "Record Type": ["Grant", "Event"],
-            "Symbol": ["ADBE", None],
-            "Event Type": [None, "Shares vested"],
-        }
-    )
-
-
-@pytest.fixture(name="benefit_history_excel_file_with_vested_and_released_rsu")
-def fixture_benefit_history_excel_file_with_vested_and_released_rsu():
-    return create_rsu_mock(
-        {
-            "Record Type": ["Grant", "Event", "Event"],
-            "Symbol": ["ADBE", "", ""],
-            "Event Type": ["", "Shares vested", "Shares released"],
-            "Date": ["", "10/15/2023", "10/15/2023"],
-            "Qty. or Amount": [None, 0.5, 0.5],
-        }
-    )
+from tests.unit.parser.demat.etrade.conftest import create_rsu_mock
 
 
 def test_rsu_parsing_with_only_vest(
