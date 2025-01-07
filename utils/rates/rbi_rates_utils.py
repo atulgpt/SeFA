@@ -11,7 +11,7 @@ from .. import date_utils, logger
 
 
 @dataclass
-class RbiRateObj():
+class RbiRateObj:
     time_in_millis: int
     rate: float
 
@@ -37,7 +37,9 @@ def __init_map(currency_code: str) -> RbiYearMonthRateMap:
             "rates.xls",
         )
         if not os.path.exists(rbi_rates_file_abs_path):
-            raise AssertionError(f"RBI rates.xls {rbi_rates_file_abs_path} is NOT present")
+            raise AssertionError(
+                f"RBI rates.xls {rbi_rates_file_abs_path} is NOT present"
+            )
 
         with pd.ExcelFile(rbi_rates_file_abs_path, engine="openpyxl") as xl:
             logger.debug_log("Currently parsing Reference Rates sheet")
@@ -67,7 +69,19 @@ def __init_map(currency_code: str) -> RbiYearMonthRateMap:
 
 
 def get_rate_at_month(currency_code: str, month: int, year: int) -> float:
-    return __init_map(currency_code)[year][month]["rate"]
+    rbi_year_month_rate_map = __init_map(currency_code)
+    rate_excel_path = os.path.join("historic_data", "rates", "rbi", "rates.xls")
+    if year not in rbi_year_month_rate_map:
+        raise ValueError(
+            f"No rbi data for currency code {currency_code} in {rate_excel_path} for year {year}"
+        )
+    rbi_month_rate_map = rbi_year_month_rate_map[year]
+    if month not in rbi_month_rate_map:
+        raise ValueError(
+            f"No rbi data for currency code {currency_code} in {rate_excel_path} \
+for month {month}/{year}"
+        )
+    return rbi_month_rate_map[month]["rate"]
 
 
 def get_rate_for_prev_mon_for_time_in_ms(currency_code: str, time_in_ms: int) -> float:

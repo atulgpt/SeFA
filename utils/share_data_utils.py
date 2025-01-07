@@ -108,10 +108,10 @@ def get_fmv(ticker: str, purchase_time_in_ms: int) -> float:
             return entry_data["fmv"]
 
         previous_entry_data = entry_data
-
+    ticker_share_price = os.path.join("historic_data", "shares", ticker, "data.csv")
     raise AssertionError(
-        "Could NOT find FMV for share release at "
-        + f"{date_utils.log_timestamp(purchase_time_in_ms)} and ticker = {ticker}"
+        f"No FMV data for share ticker {ticker} in {ticker_share_price} for date "
+        + f"{date_utils.log_timestamp(purchase_time_in_ms)}"
     )
 
 
