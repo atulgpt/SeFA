@@ -4,6 +4,7 @@ from utils.ticker_mapping import ticker_currency_info
 from utils import logger, file_utils, date_utils
 
 warn_missing_module("pandas")
+warn_missing_module("openpyxl")
 import pandas as pd
 import typing as t
 import itertools

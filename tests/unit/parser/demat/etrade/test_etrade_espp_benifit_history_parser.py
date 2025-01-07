@@ -1,5 +1,4 @@
 from parser.demat.etrade import etrade_benefit_history_parser
-from models.itr import faa3
 import pandas as pd
 
 def test_espp_parsing_with_no_purchase(
