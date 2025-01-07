@@ -47,7 +47,7 @@ contains entries related to `adbe` then the folder will be `output/adbe/fa_entri
 - Only parsing data from `BenefitHistory.xlsx` is supported.
 -  If you have sold any shares, the script will not adjust those. You have to subtract the `BenefitHistory.xlsx` manually
 -  This script is only tested under Mac, with a single `adbe` ticker with `calendar` `--calendar-mode` mode
--  Currently script works based on `historic_data`. Share FMV values is  present in [data.csv][data csv file](check the first and last data in the file) and [rates.xls][SBI rates] for RBI rate conversion
+-  Currently script works based on `historic_data`. Share FMV values is  present in [data.csv][data csv file]([ref][data csv ref])(check the first and last data in the file) and [rates.xls][SBI rates]([ref][SBI rates ref]) for RBI rate conversion
 
 # Author
 [Atul Gupta](https://github.com/atulgpt)
@@ -57,4 +57,6 @@ In case of any issues, please create a bug report. Also, do not entirely depend 
 
 
  [data csv file]: https://github.com/atulgpt/SeFA/blob/main/historic_data/shares/adbe/data.csv
+ [data csv ref]: https://finance.yahoo.com/quote/ADBE/history/
  [SBI rates]: https://github.com/atulgpt/SeFA/blob/main/historic_data/rates/rbi/rates.xls
+ [SBI rates ref]: https://www.fbil.org.in/#/home
