@@ -4,7 +4,7 @@ import os
 import sys
 
 from parser.demat.etrade import etrade_benefit_history_parser
-from utils import logger
+from utils import logger, date_utils
 from parser.demat.etrade import etrade_holdings_bystatus_parser
 from parser.itr import faa3_parser
 
@@ -86,7 +86,12 @@ def main():
         )
     else:
         purchases = etrade_benefit_history_parser.parse(
-            args.input_excel_file, args.output_folder
+            args.input_excel_file,
+            args.output_folder,
+            time_bounds=(
+                None,
+                date_utils.calendar_range("calendar", args.assessment_year)[1],
+            ),
         )
 
     faa3_parser.parse(

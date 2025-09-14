@@ -32,7 +32,9 @@ def parse_espp_row(data: pd.Series) -> t.Optional[Purchase]:
     return None
 
 
-def parse_espp(xl: pd.ExcelFile) -> t.List[Purchase]:
+def parse_espp(
+    xl: pd.ExcelFile, time_bounds: t.Optional[date_utils.DateBounds]
+) -> t.List[Purchase]:
     logger.debug_log(f"Currently parsing {ESPP_SHEET_NAME} sheet")
     sheet_pd = xl.parse(sheet_name=ESPP_SHEET_NAME, skiprows=0, header=0)
     purchases = []
@@ -61,7 +63,10 @@ def parse_rsu_row(data: pd.Series, ticker: str) -> t.Optional[Purchase]:
     return None
 
 
-def parse_rsu(xl: pd.ExcelFile):
+def parse_rsu(
+    xl: pd.ExcelFile,
+    time_bounds: t.Optional[date_utils.DateBounds],
+):
     logger.debug_log(f"Currently parsing {RSU_SHEET_NAME} sheet")
     sheet_pd = xl.parse(sheet_name=RSU_SHEET_NAME, skiprows=0, header=0)
     purchases: t.List[Purchase] = []
@@ -70,8 +75,12 @@ def parse_rsu(xl: pd.ExcelFile):
         if data["Record Type"] == "Grant":
             current_ticker = data["Symbol"].lower()
         if data["Event Type"] == "Shares released":
+            if not date_utils.is_in_bounds(
+                date_utils.parse_mm_dd(data["Date"])["time_in_millis"], time_bounds
+            ):
+                continue
             assert current_ticker is not None, (
-                "There is RSU event without Grant event(which contains the ticker info)"
+                f"There is RSU event({data["Event Type"]}) without Grant event(which contains the ticker info)"
                 + f" hence no ticker info is found while parsing {RSU_SHEET_NAME}"
             )
             parsed_purchase = parse_rsu_row(data, current_ticker)
@@ -80,7 +89,11 @@ def parse_rsu(xl: pd.ExcelFile):
     return purchases
 
 
-def parse(input_file_abs_path: str, output_folder_abs_path: str) -> t.List[Purchase]:
+def parse(
+    input_file_abs_path: str,
+    output_folder_abs_path: str,
+    time_bounds: t.Optional[date_utils.DateBounds],
+) -> t.List[Purchase]:
     logger.DEBUG = DEBUG
     purchases: t.List[Purchase] = []
     with pd.ExcelFile(input_file_abs_path, engine="openpyxl") as xl:
@@ -91,10 +104,10 @@ def parse(input_file_abs_path: str, output_folder_abs_path: str) -> t.List[Purch
                 f"Excel sheet don't have either {ESPP_SHEET_NAME} or {RSU_SHEET_NAME}"
             )
             return []
-        espp_purchases = parse_espp(xl)
+        espp_purchases = parse_espp(xl, time_bounds)
         purchases.extend(espp_purchases)
 
-        rsu_purchases = parse_rsu(xl)
+        rsu_purchases = parse_rsu(xl, time_bounds)
         purchases.extend(rsu_purchases)
 
         # logger.log_json(espp_purchases)

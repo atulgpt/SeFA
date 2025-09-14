@@ -95,11 +95,13 @@ def get_fmv(ticker: str, purchase_time_in_ms: int) -> float:
         f"{ticker}: Querying FMV at {date_utils.display_time(purchase_time_in_ms)}"
     )
 
-    previous_entry_data = None
+    previous_entry_data: t.Optional[TimedFmv] = None
     for entry_data in __init_map(ticker):
         entry_time_in_ms = entry_data["entry_time_in_millis"]
         if entry_time_in_ms >= purchase_time_in_ms:
             if entry_time_in_ms > purchase_time_in_ms:
+                if previous_entry_data is None:
+                    raise ValueError("previous_entry_data is None, expected TimedFmv")
                 previous_entry_time_in_ms = previous_entry_data["entry_time_in_millis"]
                 __validate_dates(
                     previous_entry_time_in_ms, purchase_time_in_ms, entry_time_in_ms
