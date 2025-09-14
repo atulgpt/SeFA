@@ -38,6 +38,12 @@ def __create_date_object(dt: datetime, date_str: str) -> DateObj:
         "orig_disp_time": date_str,
     }
 
+def format_time(time_in_ms: int, output_format: str) -> str:
+    """
+    Formats the time_in_ms in 30-Jun-2020
+    """
+    dt = datetime.utcfromtimestamp(time_in_ms / 1000)
+    return dt.strftime(output_format)
 
 def display_time(time_in_ms: int) -> str:
     """
