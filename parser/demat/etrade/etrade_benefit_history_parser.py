@@ -34,7 +34,16 @@ def parse_espp_row(data: pd.Series) -> t.Optional[TransactionWithTicker]:
                     float(data["Purchase Date FMV"][1:]),
                     ticker_currency_info[data["Symbol"].lower()],
                 ),
-                quantity=float(data["Sellable Qty."]),
+                # "Purchased Qty." is the gross amount bought, but part of that
+                # ("Tax Collection Shares") is withheld to cover tax on the ESPP
+                # discount and never actually held by the taxpayer - "Net Shares"
+                # (= Purchased Qty. - Tax Collection Shares) is what was actually
+                # acquired, same principle as RSU's "Shares released" (net of
+                # withholding) vs "Shares vested" (gross). "Sellable Qty." is a
+                # live balance on top of that - it drops (often to 0 for old
+                # purchases) once shares are later sold - so it's tracked
+                # separately as closing_quantity, not used as the original qty.
+                quantity=float(data["Net Shares"]),
             ),
             ticker=data["Symbol"].lower(),
         )
