@@ -12,6 +12,7 @@ from parser.demat.etrade import etrade_holdings_bystatus_parser
 from parser.demat.indmoney import indmoney_us_stocks_parser
 from parser.demat.groww import groww_indian_mf_parser, groww_indian_stocks_parser
 from models.asset_sale import AssetSale
+from models.transaction import TransactionWithTicker
 from parser.itr import faa3_parser
 from aggregator import asset_aggregator
 from utils.ticker_mapping import ticker_currency_info, ticker_org_info
@@ -22,7 +23,7 @@ import refresh_rbi_rates
 script_path = os.path.realpath(os.path.dirname(__file__))
 DEFAULT_OUTPUT_FOLDER_NAME = "output"
 default_output_folder_abs_path = os.path.join(script_path, DEFAULT_OUTPUT_FOLDER_NAME)
-DEFAULT_SOURCE_MODE = "etrade_benefit_history"
+ETRADE_BENEFIT_HISTORY_SOURCE_MODE = "etrade_benefit_history"
 ETRADE_HOLDINGS_BYSTATUS_SOURCE_MODE = "etrade_holdings_bystatus"
 INDMONEY_US_STOCKS_SOURCE_MODE = "indmoney_us_stocks"
 GROWW_INDIAN_STOCKS_SOURCE_MODE = "groww_indian_stocks"
@@ -38,16 +39,41 @@ SALE_SOURCE_PARSERS = {
 }
 
 SOURCE_MODES = [
-    DEFAULT_SOURCE_MODE,
+    ETRADE_BENEFIT_HISTORY_SOURCE_MODE,
     ETRADE_HOLDINGS_BYSTATUS_SOURCE_MODE,
     *SALE_SOURCE_PARSERS,
 ]
+
+# an input is given as `<source mode>:<file path>`, which is what lets one run read
+# a report per source instead of a single file of a single mode
+INPUT_SEPARATOR = ":"
+
 DEFAULT_CALENDER_MODE = "calendar"
 FINANCIAL_CALENDER_MODE = "financial"
 CALENDER_MODES = [
     DEFAULT_CALENDER_MODE,
     FINANCIAL_CALENDER_MODE,
 ]
+
+
+def __parse_inputs(inputs: t.List[str]) -> t.List[t.Tuple[str, str]]:
+    """
+    Splits every `<source mode>:<file path>` input into its pair. The same source
+    mode may be repeated when a source is split across more than one file
+    """
+    parsed_inputs: t.List[t.Tuple[str, str]] = []
+    for value in inputs:
+        source_mode, separator, input_excel_file = value.partition(INPUT_SEPARATOR)
+        assert separator != "" and input_excel_file != "", (
+            f"Input {value} is not of the form"
+            f" <source mode>{INPUT_SEPARATOR}<absolute path of the input Excel file>"
+        )
+        assert source_mode in SOURCE_MODES, (
+            f"Input {value} carries the unsupported source mode {source_mode}."
+            f" Supported source modes = {SOURCE_MODES}"
+        )
+        parsed_inputs.append((source_mode, input_excel_file))
+    return parsed_inputs
 
 
 def main():
@@ -67,25 +93,21 @@ def main():
         "-i",
         "--input",
         action="store",
-        dest="input_excel_file",
-        help="Specify the absolute path for the input Excel file of the chosen source"
-        f" mode: benefit history(BenefitHistory.xlsx) for {DEFAULT_SOURCE_MODE},"
-        f" holdings by status for {ETRADE_HOLDINGS_BYSTATUS_SOURCE_MODE}, the"
-        f" consolidated tax report for {INDMONEY_US_STOCKS_SOURCE_MODE} and the"
-        " stocks/mutual funds capital gains statement for"
-        f" {GROWW_INDIAN_STOCKS_SOURCE_MODE}/{GROWW_INDIAN_MF_SOURCE_MODE}",
-        required=True,
-    )
-    parser.add_argument(
-        "-m",
-        "--source-mode",
-        action="store",
-        default=DEFAULT_SOURCE_MODE,
-        dest="source_mode",
-        choices=SOURCE_MODES,
-        help=f"Specify the source mode, default = {DEFAULT_SOURCE_MODE}."
+        nargs="+",
+        dest="inputs",
+        metavar=f"SOURCE_MODE{INPUT_SEPARATOR}INPUT_EXCEL_FILE",
+        help="Specify one or more"
+        f" <source mode>{INPUT_SEPARATOR}<absolute path of the input Excel file>"
+        f" pairs, the supported source modes being {', '.join(SOURCE_MODES)}. The"
+        f" expected report is the benefit history(BenefitHistory.xlsx) for"
+        f" {ETRADE_BENEFIT_HISTORY_SOURCE_MODE}, the holdings by status for"
+        f" {ETRADE_HOLDINGS_BYSTATUS_SOURCE_MODE}, the consolidated tax report for"
+        f" {INDMONEY_US_STOCKS_SOURCE_MODE} and the stocks/mutual funds capital"
+        " gains statement for"
+        f" {GROWW_INDIAN_STOCKS_SOURCE_MODE}/{GROWW_INDIAN_MF_SOURCE_MODE}."
         f" {', '.join(SALE_SOURCE_PARSERS)} report realized sales and do not feed"
         " the schedule FA generation",
+        required=True,
     )
     parser.add_argument(
         "-cal",
@@ -138,43 +160,45 @@ def main():
     if not args.skip_refresh:
         refresh_historic_data()
 
-    if args.source_mode in SALE_SOURCE_PARSERS:
-        time_bounds = date_utils.calendar_range(
-            args.calendar_mode, args.assessment_year
-        )
-        sales: t.List[AssetSale] = []
-        for sale_source_parser in SALE_SOURCE_PARSERS[args.source_mode]:
-            sales.extend(
-                sale_source_parser.parse(
-                    args.input_excel_file, time_bounds=time_bounds
+    time_bounds = date_utils.calendar_range(args.calendar_mode, args.assessment_year)
+
+    sales: t.List[AssetSale] = []
+    purchases: t.List[TransactionWithTicker] = []
+    for source_mode, input_excel_file in __parse_inputs(args.inputs):
+        if source_mode in SALE_SOURCE_PARSERS:
+            for sale_source_parser in SALE_SOURCE_PARSERS[source_mode]:
+                sales.extend(
+                    sale_source_parser.parse(
+                        input_excel_file, time_bounds=time_bounds
+                    )
+                )
+        elif source_mode == ETRADE_HOLDINGS_BYSTATUS_SOURCE_MODE:
+            purchases.extend(
+                etrade_holdings_bystatus_parser.parse(
+                    input_excel_file, args.output_folder
                 )
             )
-        # a report covers a single schedule CG section, so the sales are split by
-        # section and each section gets its own file
-        for section_type in dict.fromkeys(sale.section_type for sale in sales):
-            asset_aggregator.parse(
-                [sale for sale in sales if sale.section_type == section_type],
-                args.output_folder,
+        elif source_mode == ETRADE_BENEFIT_HISTORY_SOURCE_MODE:
+            purchases.extend(
+                etrade_benefit_history_parser.parse(
+                    input_excel_file,
+                    args.output_folder,
+                    time_bounds=(
+                        None,
+                        date_utils.calendar_range(
+                            "calendar", args.assessment_year
+                        )[1],
+                    ),
+                )
             )
-        return
 
-    if args.source_mode == ETRADE_HOLDINGS_BYSTATUS_SOURCE_MODE:
-        purchases = etrade_holdings_bystatus_parser.parse(
-            args.input_excel_file, args.output_folder
-        )
-    else:
-        purchases = etrade_benefit_history_parser.parse(
-            args.input_excel_file,
-            args.output_folder,
-            time_bounds=(
-                None,
-                date_utils.calendar_range("calendar", args.assessment_year)[1],
-            ),
-        )
+    if sales:
+        asset_aggregator.parse(sales, args.output_folder)
 
-    faa3_parser.parse(
-        args.calendar_mode, purchases, args.assessment_year, args.output_folder
-    )
+    if purchases:
+        faa3_parser.parse(
+            args.calendar_mode, purchases, args.assessment_year, args.output_folder
+        )
 
 
 def refresh_historic_data():

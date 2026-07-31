@@ -14,11 +14,22 @@ NOT_APPLICABLE: CalcMethod = "not_applicable"
 # equity shares and equity oriented mutual funds fall under section 111A when
 # short term and section 112A when long term, everything else is reported under
 # the corresponding "other than" section
-SectionType = t.Literal["111A", "112A", "other_than_111A", "other_than_112A"]
-SECTION_111A: SectionType = "111A"
-SECTION_112A: SectionType = "112A"
-SECTION_OTHER_THAN_111A: SectionType = "other_than_111A"
-SECTION_OTHER_THAN_112A: SectionType = "other_than_112A"
+SectionType = t.Literal[
+    "111A_short", "112A_long", "other_slab_short", "other_slab_long"
+]
+SECTION_111A: SectionType = "111A_short"
+SECTION_112A: SectionType = "112A_long"
+SECTION_OTHER_THAN_111A: SectionType = "other_slab_short"
+SECTION_OTHER_THAN_112A: SectionType = "other_slab_long"
+
+# short term before long term, the concessional rate sections before the slab rate
+# ones, so that a report keeps a stable section order
+SECTION_TYPES: t.Tuple[SectionType, ...] = (
+    SECTION_111A,
+    SECTION_112A,
+    SECTION_OTHER_THAN_111A,
+    SECTION_OTHER_THAN_112A,
+)
 
 
 @dataclass

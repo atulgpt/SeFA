@@ -6,8 +6,11 @@ from models.asset_sale import (
     NOT_APPLICABLE,
     SECTION_111A,
     SECTION_112A,
+    SECTION_OTHER_THAN_111A,
+    SECTION_OTHER_THAN_112A,
     SectionType,
 )
+from parser.demat.groww.constants import NON_EQUITY_LINKED_SHARES
 
 warn_missing_module("pandas")
 warn_missing_module("openpyxl")
@@ -39,11 +42,19 @@ BLOCK_LABELS = (
 )
 
 # the block a sale is read from is what decides its holding period, Groww having
-# already applied the listed equity twelve month rule while building the report
-BLOCK_SECTION_TYPES: t.Dict[str, SectionType] = {
-    SHORT_TERM_BLOCK_LABEL: SECTION_111A,
-    LONG_TERM_BLOCK_LABEL: SECTION_112A,
+# already applied the listed equity twelve month rule while building the report.
+# `<label> -> (equity oriented section, non equity oriented section)`
+BLOCK_SECTION_TYPES: t.Dict[str, t.Tuple[SectionType, SectionType]] = {
+    SHORT_TERM_BLOCK_LABEL: (SECTION_111A, SECTION_OTHER_THAN_111A),
+    LONG_TERM_BLOCK_LABEL: (SECTION_112A, SECTION_OTHER_THAN_112A),
 }
+
+# The statement states its charges as one block of `<label>, <amount>` rows sitting
+# above the trades. Securities transaction tax is not deductible while computing the
+# capital gain, so only the rest of the total is carried into the sales
+CHARGES_BLOCK_LABEL = "Charges"
+STT_CHARGE_LABEL = "STT"
+TOTAL_CHARGE_LABEL = "Total"
 
 NAME_HEADER = "Stock name"
 QUANTITY_HEADER = "Quantity"
@@ -100,16 +111,88 @@ def __build_column_map(header: pd.Series) -> t.Dict[str, int]:
     return column_map
 
 
+def __parse_charges(sheet_pd: pd.DataFrame) -> t.Optional[float]:
+    """
+    Deductible charges of the whole statement, being its stated total less the
+    securities transaction tax. None when the sheet carries no charges block
+    """
+    label_row_index = None
+    for row_index in range(len(sheet_pd)):
+        if __cell_text(sheet_pd.iloc[row_index].iloc[0]) == CHARGES_BLOCK_LABEL:
+            label_row_index = row_index
+            break
+    if label_row_index is None:
+        return None
+
+    charges: t.Dict[str, float] = {}
+    for row_index in range(label_row_index + 1, len(sheet_pd)):
+        label = __cell_text(sheet_pd.iloc[row_index].iloc[0])
+        if label == "":
+            break
+        charges[label] = __to_float(sheet_pd.iloc[row_index].iloc[1])
+
+    missing_labels = [
+        label
+        for label in (STT_CHARGE_LABEL, TOTAL_CHARGE_LABEL)
+        if label not in charges
+    ]
+    assert not missing_labels, (
+        f"{CHARGES_BLOCK_LABEL} block is missing the row(s) {missing_labels}."
+        + f" Found rows = {sorted(charges)}"
+    )
+    return round(charges[TOTAL_CHARGE_LABEL] - charges[STT_CHARGE_LABEL], 2)
+
+
+def __sale_value(sale: AssetSale) -> float:
+    return sale.sale_transaction.fmv.price * sale.sale_transaction.quantity
+
+
+def __apply_charges(sales: t.List[AssetSale], deductible_charges: float) -> None:
+    """
+    The statement states its charges only as a whole, so they are split across the
+    sales in proportion to their sale value. The last sale absorbs the rounding
+    remainder so that the split adds back to the stated amount
+    """
+    total_sale_value = sum(__sale_value(sale) for sale in sales)
+    assert total_sale_value > 0, (
+        f"Charges of {deductible_charges} cannot be split across sales carrying no"
+        " sale value"
+    )
+
+    allocated_charges = 0.0
+    for index, sale in enumerate(sales):
+        if index == len(sales) - 1:
+            expense = round(deductible_charges - allocated_charges, 2)
+        else:
+            expense = round(
+                deductible_charges * __sale_value(sale) / total_sale_value, 2
+            )
+            allocated_charges += expense
+        sale.expense_original = Price(expense, REPORTING_CURRENCY_CODE)
+        sale.expense_exempted = Price(expense, REPORTING_CURRENCY_CODE)
+        sale.gains = Price(
+            round(sale.gains.price - expense, 2), REPORTING_CURRENCY_CODE
+        )
+
+
 def __parse_row(
-    data: pd.Series, column_map: t.Dict[str, int], section_type: SectionType
+    data: pd.Series,
+    column_map: t.Dict[str, int],
+    section_types: t.Tuple[SectionType, SectionType],
 ) -> AssetSale:
     def cell(header: str):
         return data.iloc[column_map[header]]
 
     quantity = __to_float(cell(QUANTITY_HEADER))
+    name = __cell_text(cell(NAME_HEADER))
+
+    equity_section, non_equity_section = section_types
+    section_type = (
+        non_equity_section if name in NON_EQUITY_LINKED_SHARES else equity_section
+    )
 
     return AssetSale(
-        asset_description=__cell_text(cell(NAME_HEADER)),
+        asset_description=name,
         broker=BROKER,
         section_type=section_type,
         sale_transaction=Transaction(
@@ -122,8 +205,8 @@ def __parse_row(
             fmv=Price(__to_float(cell(PURCHASE_PRICE_HEADER)), CURRENCY_CODE),
             quantity=quantity,
         ),
-        # Groww states the brokerage, STT and statutory charges only as a statement
-        # wide summary, so no expense can be attributed to an individual trade
+        # filled once every sale of the statement is known, the charges being split
+        # across them in proportion to their sale value
         expense_original=Price(0.0, REPORTING_CURRENCY_CODE),
         expense_exempted=Price(0.0, REPORTING_CURRENCY_CODE),
         gains=Price(
@@ -139,7 +222,7 @@ def __parse_row(
 def __parse_block(
     sheet_pd: pd.DataFrame,
     label_row_index: int,
-    section_type: SectionType,
+    section_types: t.Tuple[SectionType, SectionType],
     time_bounds: t.Optional[date_utils.DateBounds],
 ) -> t.List[AssetSale]:
     """
@@ -171,7 +254,7 @@ def __parse_block(
         name = __cell_text(data.iloc[0])
         if name == "" or name in BLOCK_LABELS:
             break
-        parsed_sale = __parse_row(data, column_map, section_type)
+        parsed_sale = __parse_row(data, column_map, section_types)
         if not date_utils.is_in_bounds(
             parsed_sale.sale_transaction.date["time_in_millis"], time_bounds
         ):
@@ -184,20 +267,20 @@ def parse_sheet(
     xl: pd.ExcelFile,
     sheet_name: str,
     time_bounds: t.Optional[date_utils.DateBounds],
-) -> t.List[AssetSale]:
+) -> t.Tuple[t.List[AssetSale], t.Optional[float]]:
     logger.debug_log(f"Currently parsing {sheet_name} sheet")
     sheet_pd = xl.parse(sheet_name=sheet_name, header=None)
 
     sales: t.List[AssetSale] = []
     for row_index in range(len(sheet_pd)):
         label = __cell_text(sheet_pd.iloc[row_index].iloc[0])
-        section_type = BLOCK_SECTION_TYPES.get(label)
-        if section_type is None:
+        section_types = BLOCK_SECTION_TYPES.get(label)
+        if section_types is None:
             continue
         sales.extend(
-            __parse_block(sheet_pd, row_index, section_type, time_bounds)
+            __parse_block(sheet_pd, row_index, section_types, time_bounds)
         )
-    return sales
+    return sales, __parse_charges(sheet_pd)
 
 
 def parse(
@@ -206,10 +289,23 @@ def parse(
 ) -> t.List[AssetSale]:
     logger.DEBUG = DEBUG
     sales: t.List[AssetSale] = []
+    deductible_charges: t.Optional[float] = None
     with pd.ExcelFile(input_file_abs_path, engine="openpyxl") as xl:
         logger.log(f"Total sheets present {xl.sheet_names}")
         for sheet_name in xl.sheet_names:
-            sales.extend(parse_sheet(xl, sheet_name, time_bounds))
+            sheet_sales, sheet_charges = parse_sheet(xl, sheet_name, time_bounds)
+            sales.extend(sheet_sales)
+            if sheet_charges is not None:
+                assert deductible_charges is None, (
+                    f"More than one {CHARGES_BLOCK_LABEL} block is present across"
+                    f" the sheets {xl.sheet_names}"
+                )
+                deductible_charges = sheet_charges
+
+    assert deductible_charges is not None, (
+        f"Excel sheet has no {CHARGES_BLOCK_LABEL} block stating the"
+        f" {TOTAL_CHARGE_LABEL} and the {STT_CHARGE_LABEL} charges"
+    )
 
     if not sales:
         logger.log(
@@ -219,6 +315,7 @@ def parse(
         return []
 
     sales.sort(key=lambda sale: sale.sale_transaction.date["time_in_millis"])
+    __apply_charges(sales, deductible_charges)
 
     print(
         f"Total Indian stock sale entries = {len(sales)}, "

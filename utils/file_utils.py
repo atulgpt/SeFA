@@ -70,15 +70,17 @@ def write_csv_to_file(
     return final_file_abs_path
 
 
-def write_excel_to_file(
+def write_excel_sheets_to_file(
     output_folder_abs_path: str,
     file_name: str,
-    keys: t.List[str],
-    objs,
+    sheets: t.List[t.Tuple[str, t.List[str], t.Any]],
     override: bool,
-    sheet_name: str = "Sheet1",
     print_path_to_console: bool = False,
 ) -> str:
+    """
+    Writes one workbook holding a `(sheet name, keys, objs)` triple per sheet, each
+    sheet carrying its own set of keys
+    """
     from utils.runtime_utils import warn_missing_module
 
     warn_missing_module("pandas")
@@ -93,10 +95,11 @@ def write_excel_to_file(
         raise AssertionError(
             f"Path {final_file_abs_path} already exists and force(-f) flag is not added to delete the path"
         )
-    data_frame = pd.DataFrame(list(objs), columns=keys)
-    data_frame.to_excel(
-        final_file_abs_path, sheet_name=sheet_name, index=False, engine="openpyxl"
-    )
+    with pd.ExcelWriter(final_file_abs_path, engine="openpyxl") as writer:
+        for sheet_name, keys, objs in sheets:
+            pd.DataFrame(list(objs), columns=keys).to_excel(
+                writer, sheet_name=sheet_name, index=False
+            )
     if print_path_to_console:
         __print_file_path(final_file_abs_path)
     return final_file_abs_path

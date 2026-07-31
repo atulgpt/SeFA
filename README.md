@@ -24,12 +24,36 @@ This installs all required dependencies (`pandas`, `openpyxl`, `yfinance`, `requ
 ## Run the script
 With the virtual environment activated, run the script with the downloaded `BenefitHistory.xlsx`:
 ```sh
-./run.py -i "<absolute_folder_of_benefit_history_file>/BenefitHistory.xlsx" -ay 2023
+./run.py -i "etrade_benefit_history:<absolute_folder_of_benefit_history_file>/BenefitHistory.xlsx" -ay 2023
 ```
+
+Every input is a `<source mode>:<absolute path of the input Excel file>` pair, so a single run
+can read one report per source. The same source mode may be repeated when a source is split
+across more than one file:
+```sh
+./run.py -ay 2026 -cal financial \
+  -i "groww_indian_stocks:<folder>/Stocks_Capital_Gains_Report.xlsx" \
+     "groww_indian_mf:<folder>/Mutual_Funds_Capital_Gains_Report.xlsx" \
+     "indmoney_us_stocks:<folder>/INDmoney_Tax_Report.xlsx"
+```
+
+### Source modes
+| Source mode | Expected report | Feeds |
+| --- | --- | --- |
+| `etrade_benefit_history` | `BenefitHistory.xlsx` from ETRADE | schedule FA |
+| `etrade_holdings_bystatus` | Holdings by status from ETRADE | schedule FA |
+| `indmoney_us_stocks` | INDmoney consolidated tax report | realized sales |
+| `groww_indian_stocks` | Groww stocks capital gains statement | realized sales |
+| `groww_indian_mf` | Groww mutual funds capital gains statement | realized sales |
+
+The realized sale modes report capital gains and do not feed the schedule FA generation. Their
+sales are pooled across every input and then split by the schedule CG section they are reported
+under: `111A_short`/`112A_long` for STT paid listed Indian equity shares and equity oriented
+mutual funds, `other_slab_short`/`other_slab_long` for everything else.
 
 Detailed options are listed below
 ```txt
-usage: run.py [-h] [-o OUTPUT_FOLDER] -i INPUT_EXCEL_FILE [-m {etrade_benefit_history}] [-cal {calendar,financial}] -ay ASSESSMENT_YEAR [-v]
+usage: run.py [-h] [-o OUTPUT_FOLDER] -i SOURCE_MODE:INPUT_EXCEL_FILE [SOURCE_MODE:INPUT_EXCEL_FILE ...] [-cal {calendar,financial}] -ay ASSESSMENT_YEAR [-v] [--skip-refresh]
 
 This is a Python module to generate Indian ITR schedule FA under section A3 automatically
 
@@ -37,15 +61,14 @@ options:
   -h, --help            show this help message and exit
   -o OUTPUT_FOLDER, --output OUTPUT_FOLDER
                         Specify the absolute path of the output folder for JSON data, default = <current_folder_path_of_the_script>
-  -i INPUT_EXCEL_FILE, --input INPUT_EXCEL_FILE
-                        Specify the absolute path for input benefit history(BenefitHistory.xlsx) Excel file
-  -m {etrade_benefit_history}, --source-mode {etrade_benefit_history}
-                        Specify the source mode. Currently, only benefit history from etrade is supported, default = etrade_benefit_history
+  -i SOURCE_MODE:INPUT_EXCEL_FILE [SOURCE_MODE:INPUT_EXCEL_FILE ...], --input SOURCE_MODE:INPUT_EXCEL_FILE [SOURCE_MODE:INPUT_EXCEL_FILE ...]
+                        Specify one or more <source mode>:<absolute path of the input Excel file> pairs
   -cal {calendar,financial}, --calendar-mode {calendar,financial}
                         Specify the calendar period for consideration, default = calendar
   -ay ASSESSMENT_YEAR, --assessment-year ASSESSMENT_YEAR
                         Current year of assessment year. For AY 2019-2020, input will be 2019. Input will be of type integer
   -v, --verbose         Enable the debug logs
+  --skip-refresh        Skip refreshing historic share prices from Yahoo Finance and use the bundled historic_data CSVs instead
 ```
 
 ## Historic data auto-refresh
@@ -66,6 +89,9 @@ can still run `refresh_historic_data.py` or `refresh_rbi_rates.py` manually.
 ## Output
 Inside the `output` folder(if nothing else is specified), the `ticker` folder will be created under which `fa_entries.csv` will be generated. For example, if your `BenefitHistory.xlsx`
 contains entries related to `adbe` then the folder will be `output/adbe/fa_entries.csv`
+
+The realized sale modes write `asset_sales.xlsx` into the same folder, holding one sheet per
+schedule CG section present, each named after that section.
 
 # Limitations
 - Only parsing data from `BenefitHistory.xlsx` is supported.

@@ -10,7 +10,7 @@ from utils.runtime_utils import warn_missing_module
 from utils import logger, file_utils
 from utils.rates import rbi_rates_utils
 from models.transaction import Transaction
-from models.asset_sale import AssetSale, SectionType
+from models.asset_sale import AssetSale, SECTION_TYPES, SectionType
 
 warn_missing_module("pandas")
 warn_missing_module("openpyxl")
@@ -18,9 +18,9 @@ import typing as t
 
 DEBUG = False
 
-# one report per schedule CG section, both the file and the sheet carrying the
-# section the sales inside it are reported under
-OUTPUT_FILE_NAME_FORMAT = "asset_sales.xlsx"
+# one sheet per schedule CG section, the sheet carrying the name of the section the
+# sales inside it are reported under
+OUTPUT_FILE_NAME = "asset_sales.xlsx"
 
 # only used to label the reporting currency columns of an empty report
 DEFAULT_REPORTING_CURRENCY_CODE = "INR"
@@ -99,18 +99,6 @@ def __currency_codes(sales: t.List[AssetSale], reporting_code: str) -> t.List[st
     return sorted(codes) + [reporting_code]
 
 
-def __section_type(sales: t.List[AssetSale]) -> SectionType:
-    """
-    A report covers exactly one schedule CG section, so the caller splits the
-    sales by section before handing them over
-    """
-    section_types = {sale.section_type for sale in sales}
-    assert (
-        len(section_types) == 1
-    ), f"Sales must belong to exactly one section, found {sorted(section_types)}"
-    return section_types.pop()
-
-
 def __serial_order_key(sale: AssetSale) -> t.Tuple[str, int]:
     """
     Serial numbers run broker wise and, within a broker, purchase date wise
@@ -184,6 +172,36 @@ def __build_row(
     return tuple(values.get(column) for column in columns)
 
 
+def __build_sheet(
+    section_type: SectionType, sales: t.List[AssetSale]
+) -> t.Tuple[str, t.List[str], t.List[t.Tuple[t.Any, ...]]]:
+    """
+    A sheet holds the sales of one schedule CG section, its columns covering only
+    the currencies that section's sales are traded in
+    """
+    reporting_currency_code = __reporting_currency_code(sales)
+    columns = header_names(
+        COLUMNS,
+        __currency_codes(sales, reporting_currency_code),
+        reporting_currency_code,
+    )
+
+    print(
+        f"Total {section_type} asset sale entries = {len(sales)}, "
+        + f"total gains({reporting_currency_code}) = "
+        + f"{round(sum(map(lambda sale: sale.gains.price, sales)), 2)}"
+    )
+
+    return (
+        section_type,
+        columns,
+        [
+            __build_row(serial_number, sale, columns)
+            for serial_number, sale in enumerate(sales, start=1)
+        ],
+    )
+
+
 def parse(
     sales: t.List[AssetSale],
     output_folder_abs_path: str,
@@ -191,30 +209,30 @@ def parse(
     logger.DEBUG = DEBUG
     ordered_sales = sorted(sales, key=__serial_order_key)
 
-    section_type = __section_type(ordered_sales)
-    reporting_currency_code = __reporting_currency_code(ordered_sales)
-    columns = header_names(
-        COLUMNS,
-        __currency_codes(ordered_sales, reporting_currency_code),
-        reporting_currency_code,
-    )
+    # a sale is reported under exactly one schedule CG section, so every section
+    # present gets its own sheet inside the one workbook
+    present_section_types = {sale.section_type for sale in ordered_sales}
+    section_types = [
+        section_type
+        for section_type in SECTION_TYPES
+        if section_type in present_section_types
+    ]
 
-    file_utils.write_excel_to_file(
+    file_utils.write_excel_sheets_to_file(
         output_folder_abs_path,
-        OUTPUT_FILE_NAME_FORMAT.format(section_type=section_type),
-        columns,
-        (
-            __build_row(serial_number, sale, columns)
-            for serial_number, sale in enumerate(ordered_sales, start=1)
-        ),
+        OUTPUT_FILE_NAME,
+        [
+            __build_sheet(
+                section_type,
+                [
+                    sale
+                    for sale in ordered_sales
+                    if sale.section_type == section_type
+                ],
+            )
+            for section_type in section_types
+        ],
         True,
-        sheet_name=section_type,
         print_path_to_console=True,
-    )
-
-    print(
-        f"Total {section_type} asset sale entries = {len(ordered_sales)}, "
-        + f"total gains({reporting_currency_code}) = "
-        + f"{round(sum(map(lambda sale: sale.gains.price, ordered_sales)), 2)}"
     )
     return ordered_sales
