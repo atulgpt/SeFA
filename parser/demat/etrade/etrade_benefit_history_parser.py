@@ -12,21 +12,23 @@ import itertools
 
 DEBUG = False
 
-from models.purchase import Purchase, Price
+from models.transaction import Transaction, TransactionWithTicker, Price
 
 ESPP_SHEET_NAME = "ESPP"
 RSU_SHEET_NAME = "Restricted Stock"
 
 
-def parse_espp_row(data: pd.Series) -> t.Optional[Purchase]:
+def parse_espp_row(data: pd.Series) -> t.Optional[TransactionWithTicker]:
     if data["Record Type"] == "Purchase":
-        return Purchase(
-            date=date_utils.parse_named_mon(data["Purchase Date"]),
-            purchase_fmv=Price(
-                float(data["Purchase Date FMV"][1:]),
-                ticker_currency_info[data["Symbol"].lower()],
+        return TransactionWithTicker(
+            purchase=Transaction(
+                date=date_utils.parse_named_mon(data["Purchase Date"]),
+                fmv=Price(
+                    float(data["Purchase Date FMV"][1:]),
+                    ticker_currency_info[data["Symbol"].lower()],
+                ),
+                quantity=float(data["Sellable Qty."]),
             ),
-            quantity=float(data["Sellable Qty."]),
             ticker=data["Symbol"].lower(),
         )
     return None
@@ -34,7 +36,7 @@ def parse_espp_row(data: pd.Series) -> t.Optional[Purchase]:
 
 def parse_espp(
     xl: pd.ExcelFile, time_bounds: t.Optional[date_utils.DateBounds]
-) -> t.List[Purchase]:
+) -> t.List[TransactionWithTicker]:
     logger.debug_log(f"Currently parsing {ESPP_SHEET_NAME} sheet")
     sheet_pd = xl.parse(sheet_name=ESPP_SHEET_NAME, skiprows=0, header=0)
     purchases = []
@@ -45,19 +47,21 @@ def parse_espp(
     return purchases
 
 
-def parse_rsu_row(data: pd.Series, ticker: str) -> t.Optional[Purchase]:
+def parse_rsu_row(data: pd.Series, ticker: str) -> t.Optional[TransactionWithTicker]:
     if data["Event Type"] == "Shares released":
         ticker_in_lower = ticker.lower()
-        return Purchase(
-            date=date_utils.parse_mm_dd(data["Date"]),
-            purchase_fmv=Price(
-                share_data_utils.get_fmv(
-                    ticker_in_lower,
-                    date_utils.parse_mm_dd(data["Date"])["time_in_millis"],
+        return TransactionWithTicker(
+            purchase=Transaction(
+                date=date_utils.parse_mm_dd(data["Date"]),
+                fmv=Price(
+                    share_data_utils.get_fmv(
+                        ticker_in_lower,
+                        date_utils.parse_mm_dd(data["Date"])["time_in_millis"],
+                    ),
+                    ticker_currency_info[ticker_in_lower],
                 ),
-                ticker_currency_info[ticker_in_lower],
+                quantity=data["Qty. or Amount"],
             ),
-            quantity=data["Qty. or Amount"],
             ticker=ticker_in_lower,
         )
     return None
@@ -69,7 +73,7 @@ def parse_rsu(
 ):
     logger.debug_log(f"Currently parsing {RSU_SHEET_NAME} sheet")
     sheet_pd = xl.parse(sheet_name=RSU_SHEET_NAME, skiprows=0, header=0)
-    purchases: t.List[Purchase] = []
+    purchases: t.List[TransactionWithTicker] = []
     current_ticker = None
     for _, data in sheet_pd.iterrows():
         if data["Record Type"] == "Grant":
@@ -93,9 +97,9 @@ def parse(
     input_file_abs_path: str,
     output_folder_abs_path: str,
     time_bounds: t.Optional[date_utils.DateBounds],
-) -> t.List[Purchase]:
+) -> t.List[TransactionWithTicker]:
     logger.DEBUG = DEBUG
-    purchases: t.List[Purchase] = []
+    purchases: t.List[TransactionWithTicker] = []
     with pd.ExcelFile(input_file_abs_path, engine="openpyxl") as xl:
         sheet_names = xl.sheet_names
         logger.log(f"Total sheets being process {sheet_names}")
@@ -114,7 +118,7 @@ def parse(
         # logger.log_json(rsu_purchases)
 
     purchases.sort(
-        key=lambda purchase: purchase.date["time_in_millis"],
+        key=lambda purchase: purchase.purchase.date["time_in_millis"],
     )
     file_utils.write_to_file(
         output_folder_abs_path,
@@ -123,13 +127,13 @@ def parse(
         True,
     )
 
-    ticker_shares_map: t.Dict[str, list[Purchase]] = {}
+    ticker_shares_map: t.Dict[str, list[TransactionWithTicker]] = {}
     for ticker, ticker_purchases in itertools.groupby(
         purchases, key=operator.attrgetter("ticker")
     ):
         ticker_shares_map[ticker] = list(ticker_purchases)
         print(
             f"{ticker}: Total shares present in the sheet "
-            + f"= {sum(map(lambda x:x.quantity, ticker_shares_map[ticker]))}"
+            + f"= {sum(map(lambda x:x.purchase.quantity, ticker_shares_map[ticker]))}"
         )
     return purchases

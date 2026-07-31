@@ -70,5 +70,37 @@ def write_csv_to_file(
     return final_file_abs_path
 
 
+def write_excel_to_file(
+    output_folder_abs_path: str,
+    file_name: str,
+    keys: t.List[str],
+    objs,
+    override: bool,
+    sheet_name: str = "Sheet1",
+    print_path_to_console: bool = False,
+) -> str:
+    from utils.runtime_utils import warn_missing_module
+
+    warn_missing_module("pandas")
+    warn_missing_module("openpyxl")
+    import pandas as pd
+
+    if not os.path.exists(output_folder_abs_path):
+        os.makedirs(output_folder_abs_path)
+
+    final_file_abs_path = os.path.join(output_folder_abs_path, file_name)
+    if os.path.exists(final_file_abs_path) and not override:
+        raise AssertionError(
+            f"Path {final_file_abs_path} already exists and force(-f) flag is not added to delete the path"
+        )
+    data_frame = pd.DataFrame(list(objs), columns=keys)
+    data_frame.to_excel(
+        final_file_abs_path, sheet_name=sheet_name, index=False, engine="openpyxl"
+    )
+    if print_path_to_console:
+        __print_file_path(final_file_abs_path)
+    return final_file_abs_path
+
+
 def __print_file_path(final_path: str):
     print(f"Output file created at {final_path}")

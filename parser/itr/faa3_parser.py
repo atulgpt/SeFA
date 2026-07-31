@@ -6,14 +6,14 @@ import operator
 from utils import date_utils, share_data_utils, file_utils
 from utils.ticker_mapping import ticker_org_info, ticker_currency_info
 from utils.rates import rbi_rates_utils
-from models.purchase import Purchase, Price
+from models.transaction import Transaction, TransactionWithTicker, Price
 from models.itr.faa3 import FAA3
 
 
 def parse_org_purchases(
     ticker: str,
     calendar_mode: str,
-    purchases: t.List[Purchase],
+    purchases: t.List[TransactionWithTicker],
     assessment_year: int,
     output_folder_abs_path: str,
 ):
@@ -24,27 +24,29 @@ def parse_org_purchases(
     currency_code = ticker_currency_info[ticker]
     before_purchases = list(
         filter(
-            lambda purchase: purchase.date["time_in_millis"] < start_time_in_ms,
+            lambda purchase: purchase.purchase.date["time_in_millis"]
+            < start_time_in_ms,
             purchases,
         )
     )
     after_purchases = list(
         filter(
-            lambda purchase: purchase.date["time_in_millis"] >= start_time_in_ms
-            and purchase.date["time_in_millis"] <= end_time_in_ms,
+            lambda purchase: purchase.purchase.date["time_in_millis"]
+            >= start_time_in_ms
+            and purchase.purchase.date["time_in_millis"] <= end_time_in_ms,
             purchases,
         )
     )
     # for a in before_purchases:
-    #     t = a.date["disp_time"]
-    #     print(f"a = {a.quantity} on da = {t}")
+    #     t = a.purchase.date["disp_time"]
+    #     print(f"a = {a.purchase.quantity} on da = {t}")
 
-    previous_sum = sum(map(lambda purchase: purchase.quantity, before_purchases))
+    previous_sum = sum(map(lambda purchase: purchase.purchase.quantity, before_purchases))
     print(
         f"{ticker}: Previous period(before {date_utils.display_time(start_time_in_ms)}) total share = {previous_sum}"
     )
 
-    after_sum = sum(map(lambda purchase: purchase.quantity, after_purchases))
+    after_sum = sum(map(lambda purchase: purchase.purchase.quantity, after_purchases))
     print(
         f"{ticker}: This period(from {date_utils.display_time(start_time_in_ms)} to {date_utils.display_time(end_time_in_ms)}) total share = {after_sum}"
     )
@@ -70,13 +72,15 @@ def parse_org_purchases(
         fa_entries.append(
             FAA3(
                 org,
-                purchase=Purchase(
-                    before_purchase_date,
-                    Price(
-                        fmv_price_on_start,
-                        ticker_currency_info[ticker],
+                purchase=TransactionWithTicker(
+                    purchase=Transaction(
+                        before_purchase_date,
+                        Price(
+                            fmv_price_on_start,
+                            ticker_currency_info[ticker],
+                        ),
+                        quantity=previous_sum,
                     ),
-                    quantity=previous_sum,
                     ticker=ticker,
                 ),
                 purchase_price=previous_sum
@@ -97,18 +101,18 @@ def parse_org_purchases(
             FAA3(
                 org,
                 purchase=purchase,
-                peak_price=purchase.quantity
+                peak_price=purchase.purchase.quantity
                 * share_data_utils.get_peak_price_in_inr(
                     ticker,
-                    purchase.date["time_in_millis"],
+                    purchase.purchase.date["time_in_millis"],
                     end_time_in_ms,
                 ),
-                purchase_price=purchase.quantity
-                * purchase.purchase_fmv.price
+                purchase_price=purchase.purchase.quantity
+                * purchase.purchase.fmv.price
                 * rbi_rates_utils.get_rate_for_prev_mon_for_time_in_ms(
-                    currency_code, purchase.date["time_in_millis"]
+                    currency_code, purchase.purchase.date["time_in_millis"]
                 ),
-                closing_price=purchase.quantity * closing_inr_price,
+                closing_price=purchase.purchase.quantity * closing_inr_price,
             )
         )
 
@@ -150,7 +154,9 @@ def parse_org_purchases(
                 entry.org.zip_code,
                 entry.org.nature,
                 # ref https://www.reddit.com/r/IndiaTax/comments/1mhbi0w/a3_template_commonerrorscsv_row_skip_any_idea/
-                date_utils.format_time(entry.purchase.date["time_in_millis"], "%Y-%m-%d"),
+                date_utils.format_time(
+                    entry.purchase.purchase.date["time_in_millis"], "%Y-%m-%d"
+                ),
                 round(entry.purchase_price),
                 round(entry.peak_price),
                 round(entry.closing_price),
@@ -167,7 +173,7 @@ def parse_org_purchases(
 
 def parse(
     calendar_mode: str,
-    purchases: t.List[Purchase],
+    purchases: t.List[TransactionWithTicker],
     assessment_year: int,
     output_folder_abs_path: str,
 ):

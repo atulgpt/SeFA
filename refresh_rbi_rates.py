@@ -32,6 +32,7 @@ DEFAULT_CURRENCIES = ["USD"]
 # FBIL began publishing the spot USD/INR reference rate on 2018-07-10.
 DEFAULT_START = "2018-07-10"
 FRANKFURTER_URL = "https://api.frankfurter.dev/v2/rates"
+QUOTE_CURRENCY = "INR"
 
 
 def __fetch_month_end_rates(currency: str, start: str, end: str):
@@ -42,7 +43,13 @@ def __fetch_month_end_rates(currency: str, start: str, end: str):
 
     resp = requests.get(
         FRANKFURTER_URL,
-        params={"from": start, "to": end, "base": currency, "providers": "FBIL"},
+        params={
+            "from": start,
+            "to": end,
+            "base": currency,
+            "quotes": QUOTE_CURRENCY,
+            "providers": "FBIL",
+        },
         timeout=60,
     )
     resp.raise_for_status()
@@ -55,7 +62,7 @@ def __fetch_month_end_rates(currency: str, start: str, end: str):
     # payload is ascending by date, so the last entry per month wins.
     month_end = {}
     for entry in payload:
-        if entry.get("quote") != "INR":
+        if entry.get("quote") != QUOTE_CURRENCY:
             continue
         entry_date = datetime.strptime(entry["date"], "%Y-%m-%d")
         month_end[(entry_date.year, entry_date.month)] = (entry_date, entry["rate"])
