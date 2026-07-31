@@ -49,7 +49,7 @@ across more than one file:
 The realized sale modes report capital gains and do not feed the schedule FA generation. Their
 sales are pooled across every input and then split by the schedule CG section they are reported
 under: `111A_short`/`112A_long` for STT paid listed Indian equity shares and equity oriented
-mutual funds, `other_slab_short`/`other_slab_long` for everything else.
+mutual funds, `slab_short`/`slab_long` for everything else.
 
 Detailed options are listed below
 ```txt

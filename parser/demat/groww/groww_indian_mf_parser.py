@@ -1,13 +1,10 @@
 from utils.runtime_utils import warn_missing_module
 from utils import logger, date_utils
+from utils.excel_utils import cell_text, optional_cell_text, to_float
 from models.transaction import Transaction, Price
 from models.asset_sale import (
     AssetSale,
     NOT_APPLICABLE,
-    SECTION_111A,
-    SECTION_112A,
-    SECTION_OTHER_THAN_111A,
-    SECTION_OTHER_THAN_112A,
     SectionType,
 )
 
@@ -18,9 +15,7 @@ import typing as t
 
 DEBUG = False
 
-# Indian mutual funds are traded and reported in INR, so no conversion applies
 CURRENCY_CODE = "INR"
-REPORTING_CURRENCY_CODE = "INR"
 
 BROKER = "Groww"
 
@@ -34,14 +29,14 @@ UNSPECIFIED_DEBT_CATEGORY_LABEL = "Debt (Unspecified - Other than Equity) Catego
 
 # `<label> -> (short term section, long term section)`
 CATEGORY_SECTION_TYPES: t.Dict[str, t.Tuple[SectionType, SectionType]] = {
-    EQUITY_CATEGORY_LABEL: (SECTION_111A, SECTION_112A),
+    EQUITY_CATEGORY_LABEL: (SectionType.SECTION_111A, SectionType.SECTION_112A),
     SPECIFIED_DEBT_CATEGORY_LABEL: (
-        SECTION_OTHER_THAN_111A,
-        SECTION_OTHER_THAN_112A,
+        SectionType.SECTION_SLAB_SHORT,
+        SectionType.SECTION_SLAB_LONG,
     ),
     UNSPECIFIED_DEBT_CATEGORY_LABEL: (
-        SECTION_OTHER_THAN_111A,
-        SECTION_OTHER_THAN_112A,
+        SectionType.SECTION_SLAB_SHORT,
+        SectionType.SECTION_SLAB_LONG,
     ),
 }
 
@@ -68,37 +63,10 @@ REQUIRED_HEADERS = (
 )
 
 
-def __cell_text(value) -> str:
-    if value is None or pd.isna(value):
-        return ""
-    return str(value).strip()
-
-
-def __to_float(value) -> float:
-    if value is None or (isinstance(value, float) and pd.isna(value)):
-        return 0.0
-    if isinstance(value, str):
-        stripped = value.strip().replace(",", "")
-        if stripped == "":
-            return 0.0
-        return float(stripped)
-    return float(value)
-
-
-def __parse_date(value) -> date_utils.DateObj:
-    """
-    Purchase/redeem dates come either as an ISO string or as a datetime when the
-    cell is stored as a real date in the workbook
-    """
-    if isinstance(value, str):
-        return date_utils.parse_yyyy_mm_dd(value.strip())
-    return date_utils.parse_yyyy_mm_dd(pd.Timestamp(value).strftime("%Y-%m-%d"))
-
-
 def __build_column_map(header: pd.Series) -> t.Dict[str, int]:
     column_map: t.Dict[str, int] = {}
     for column_index in range(len(header)):
-        name = __cell_text(header.iloc[column_index])
+        name = optional_cell_text(header.iloc[column_index])
         if name != "" and name not in column_map:
             column_map[name] = column_index
     return column_map
@@ -125,11 +93,11 @@ def __parse_row(
     def cell(header: str):
         return data.iloc[column_map[header]]
 
-    quantity = __to_float(cell(QUANTITY_HEADER))
-    purchase_date = __parse_date(cell(PURCHASE_DATE_HEADER))
-    sale_date = __parse_date(cell(SALE_DATE_HEADER))
-    short_term_gains = __to_float(cell(SHORT_TERM_GAINS_HEADER))
-    long_term_gains = __to_float(cell(LONG_TERM_GAINS_HEADER))
+    quantity = to_float(cell(QUANTITY_HEADER))
+    purchase_date = date_utils.parse_yyyy_mm_dd(cell_text(cell(PURCHASE_DATE_HEADER)))
+    sale_date = date_utils.parse_yyyy_mm_dd(cell_text(cell(SALE_DATE_HEADER)))
+    short_term_gains = to_float(cell(SHORT_TERM_GAINS_HEADER))
+    long_term_gains = to_float(cell(LONG_TERM_GAINS_HEADER))
 
     short_term_section, long_term_section = section_types
     section_type = (
@@ -139,35 +107,31 @@ def __parse_row(
     )
 
     return AssetSale(
-        asset_description=__cell_text(cell(NAME_HEADER)),
+        asset_description=cell_text(cell(NAME_HEADER)),
         broker=BROKER,
         section_type=section_type,
         sale_transaction=Transaction(
             date=sale_date,
-            fmv=Price(__to_float(cell(SALE_PRICE_HEADER)), CURRENCY_CODE),
+            fmv=Price(to_float(cell(SALE_PRICE_HEADER)), CURRENCY_CODE),
             quantity=quantity,
         ),
         purchase_transaction=Transaction(
             date=purchase_date,
-            fmv=Price(__to_float(cell(PURCHASE_PRICE_HEADER)), CURRENCY_CODE),
+            fmv=Price(to_float(cell(PURCHASE_PRICE_HEADER)), CURRENCY_CODE),
             quantity=quantity,
         ),
         # the statement carries no per redemption charge, exit load and stamp duty
         # already being netted off the redeem price
-        expense_original=Price(0.0, REPORTING_CURRENCY_CODE),
-        expense_exempted=Price(0.0, REPORTING_CURRENCY_CODE),
+        expense_original=Price(0.0, CURRENCY_CODE),
+        expense_exempted=Price(0.0, CURRENCY_CODE),
         # the stated gain already accounts for the grandfathered 31-Jan-2018 NAV,
         # so it is read off the report rather than derived from the two legs
-        gains=Price(
-            round(short_term_gains + long_term_gains, 2), REPORTING_CURRENCY_CODE
-        ),
+        gains=Price(round(short_term_gains + long_term_gains, 2), CURRENCY_CODE),
         sale_exchange_rate=None,
         purchase_exchange_rate=None,
         sale_calc_method=NOT_APPLICABLE,
         purchase_calc_method=NOT_APPLICABLE,
-        fmv_31_jan_2018=Price(
-            __to_float(cell(GRANDFATHERED_NAV_HEADER)), CURRENCY_CODE
-        ),
+        fmv_31_jan_2018=Price(to_float(cell(GRANDFATHERED_NAV_HEADER)), CURRENCY_CODE),
     )
 
 
@@ -183,7 +147,7 @@ def __parse_block(
     """
     header_row_index = None
     for row_index in range(label_row_index + 1, len(sheet_pd)):
-        if __cell_text(sheet_pd.iloc[row_index].iloc[0]) == NAME_HEADER:
+        if optional_cell_text(sheet_pd.iloc[row_index].iloc[0]) == NAME_HEADER:
             header_row_index = row_index
             break
     assert header_row_index is not None, (
@@ -203,7 +167,7 @@ def __parse_block(
     sales: t.List[AssetSale] = []
     for row_index in range(header_row_index + 1, len(sheet_pd)):
         data = sheet_pd.iloc[row_index]
-        name = __cell_text(data.iloc[0])
+        name = optional_cell_text(data.iloc[0])
         if name == "" or name in CATEGORY_SECTION_TYPES:
             break
         parsed_sale = __parse_row(data, column_map, section_types)
@@ -225,13 +189,11 @@ def parse_sheet(
 
     sales: t.List[AssetSale] = []
     for row_index in range(len(sheet_pd)):
-        label = __cell_text(sheet_pd.iloc[row_index].iloc[0])
+        label = optional_cell_text(sheet_pd.iloc[row_index].iloc[0])
         section_types = CATEGORY_SECTION_TYPES.get(label)
         if section_types is None:
             continue
-        sales.extend(
-            __parse_block(sheet_pd, row_index, section_types, time_bounds)
-        )
+        sales.extend(__parse_block(sheet_pd, row_index, section_types, time_bounds))
     return sales
 
 
@@ -247,15 +209,14 @@ def parse(
             sales.extend(parse_sheet(xl, sheet_name, time_bounds))
 
     assert sales, (
-        "Excel sheet don't have any block matching "
-        + f"{list(CATEGORY_SECTION_TYPES)}"
+        "Excel sheet don't have any block matching " + f"{list(CATEGORY_SECTION_TYPES)}"
     )
 
     sales.sort(key=lambda sale: sale.sale_transaction.date["time_in_millis"])
 
     print(
         f"Total Indian mutual fund sale entries = {len(sales)}, "
-        + f"total gains({REPORTING_CURRENCY_CODE}) = "
+        + f"total gains({CURRENCY_CODE}) = "
         + f"{round(sum(map(lambda sale: sale.gains.price, sales)), 2)}"
     )
     return sales

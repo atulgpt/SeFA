@@ -1,13 +1,10 @@
 from utils.runtime_utils import warn_missing_module
 from utils import logger, date_utils
+from utils.excel_utils import cell_text, optional_cell_text, to_float
 from models.transaction import Transaction, Price
 from models.asset_sale import (
     AssetSale,
     NOT_APPLICABLE,
-    SECTION_111A,
-    SECTION_112A,
-    SECTION_OTHER_THAN_111A,
-    SECTION_OTHER_THAN_112A,
     SectionType,
 )
 from parser.demat.groww.constants import NON_EQUITY_LINKED_SHARES
@@ -19,9 +16,7 @@ import typing as t
 
 DEBUG = False
 
-# Indian listed stocks are traded and reported in INR, so no conversion applies
 CURRENCY_CODE = "INR"
-REPORTING_CURRENCY_CODE = "INR"
 
 BROKER = "Groww"
 
@@ -45,8 +40,8 @@ BLOCK_LABELS = (
 # already applied the listed equity twelve month rule while building the report.
 # `<label> -> (equity oriented section, non equity oriented section)`
 BLOCK_SECTION_TYPES: t.Dict[str, t.Tuple[SectionType, SectionType]] = {
-    SHORT_TERM_BLOCK_LABEL: (SECTION_111A, SECTION_OTHER_THAN_111A),
-    LONG_TERM_BLOCK_LABEL: (SECTION_112A, SECTION_OTHER_THAN_112A),
+    SHORT_TERM_BLOCK_LABEL: (SectionType.SECTION_111A, SectionType.SECTION_SLAB_SHORT),
+    LONG_TERM_BLOCK_LABEL: (SectionType.SECTION_112A, SectionType.SECTION_SLAB_LONG),
 }
 
 # The statement states its charges as one block of `<label>, <amount>` rows sitting
@@ -77,37 +72,10 @@ REQUIRED_HEADERS = (
 )
 
 
-def __cell_text(value) -> str:
-    if value is None or pd.isna(value):
-        return ""
-    return str(value).strip()
-
-
-def __to_float(value) -> float:
-    if value is None or (isinstance(value, float) and pd.isna(value)):
-        return 0.0
-    if isinstance(value, str):
-        stripped = value.strip().replace(",", "")
-        if stripped == "":
-            return 0.0
-        return float(stripped)
-    return float(value)
-
-
-def __parse_date(value) -> date_utils.DateObj:
-    """
-    Trade dates come either as a `DD-MM-YYYY` string or as a datetime when the cell
-    is stored as a real date in the workbook
-    """
-    if isinstance(value, str):
-        return date_utils.parse_dd_mm_yyyy(value.strip())
-    return date_utils.parse_dd_mm_yyyy(pd.Timestamp(value).strftime("%d-%m-%Y"))
-
-
 def __build_column_map(header: pd.Series) -> t.Dict[str, int]:
     column_map: t.Dict[str, int] = {}
     for column_index in range(len(header)):
-        name = __cell_text(header.iloc[column_index])
+        name = optional_cell_text(header.iloc[column_index])
         if name != "" and name not in column_map:
             column_map[name] = column_index
     return column_map
@@ -120,7 +88,7 @@ def __parse_charges(sheet_pd: pd.DataFrame) -> t.Optional[float]:
     """
     label_row_index = None
     for row_index in range(len(sheet_pd)):
-        if __cell_text(sheet_pd.iloc[row_index].iloc[0]) == CHARGES_BLOCK_LABEL:
+        if optional_cell_text(sheet_pd.iloc[row_index].iloc[0]) == CHARGES_BLOCK_LABEL:
             label_row_index = row_index
             break
     if label_row_index is None:
@@ -128,10 +96,10 @@ def __parse_charges(sheet_pd: pd.DataFrame) -> t.Optional[float]:
 
     charges: t.Dict[str, float] = {}
     for row_index in range(label_row_index + 1, len(sheet_pd)):
-        label = __cell_text(sheet_pd.iloc[row_index].iloc[0])
+        label = optional_cell_text(sheet_pd.iloc[row_index].iloc[0])
         if label == "":
             break
-        charges[label] = __to_float(sheet_pd.iloc[row_index].iloc[1])
+        charges[label] = to_float(sheet_pd.iloc[row_index].iloc[1])
 
     missing_labels = [
         label
@@ -145,17 +113,13 @@ def __parse_charges(sheet_pd: pd.DataFrame) -> t.Optional[float]:
     return round(charges[TOTAL_CHARGE_LABEL] - charges[STT_CHARGE_LABEL], 2)
 
 
-def __sale_value(sale: AssetSale) -> float:
-    return sale.sale_transaction.fmv.price * sale.sale_transaction.quantity
-
-
 def __apply_charges(sales: t.List[AssetSale], deductible_charges: float) -> None:
     """
     The statement states its charges only as a whole, so they are split across the
     sales in proportion to their sale value. The last sale absorbs the rounding
     remainder so that the split adds back to the stated amount
     """
-    total_sale_value = sum(__sale_value(sale) for sale in sales)
+    total_sale_value = sum(sale.sale_transaction.total_value() for sale in sales)
     assert total_sale_value > 0, (
         f"Charges of {deductible_charges} cannot be split across sales carrying no"
         " sale value"
@@ -167,14 +131,15 @@ def __apply_charges(sales: t.List[AssetSale], deductible_charges: float) -> None
             expense = round(deductible_charges - allocated_charges, 2)
         else:
             expense = round(
-                deductible_charges * __sale_value(sale) / total_sale_value, 2
+                deductible_charges
+                * sale.sale_transaction.total_value()
+                / total_sale_value,
+                2,
             )
             allocated_charges += expense
-        sale.expense_original = Price(expense, REPORTING_CURRENCY_CODE)
-        sale.expense_exempted = Price(expense, REPORTING_CURRENCY_CODE)
-        sale.gains = Price(
-            round(sale.gains.price - expense, 2), REPORTING_CURRENCY_CODE
-        )
+        sale.expense_original = Price(expense, CURRENCY_CODE)
+        sale.expense_exempted = Price(expense, CURRENCY_CODE)
+        sale.gains = Price(round(sale.gains.price - expense, 2), CURRENCY_CODE)
 
 
 def __parse_row(
@@ -185,8 +150,8 @@ def __parse_row(
     def cell(header: str):
         return data.iloc[column_map[header]]
 
-    quantity = __to_float(cell(QUANTITY_HEADER))
-    name = __cell_text(cell(NAME_HEADER))
+    quantity = to_float(cell(QUANTITY_HEADER))
+    name = cell_text(cell(NAME_HEADER))
 
     equity_section, non_equity_section = section_types
     section_type = (
@@ -198,27 +163,27 @@ def __parse_row(
         broker=BROKER,
         section_type=section_type,
         sale_transaction=Transaction(
-            date=__parse_date(cell(SALE_DATE_HEADER)),
-            fmv=Price(__to_float(cell(SALE_PRICE_HEADER)), CURRENCY_CODE),
+            date=date_utils.parse_dd_mm_yyyy(cell_text(cell(SALE_DATE_HEADER))),
+            fmv=Price(to_float(cell(SALE_PRICE_HEADER)), CURRENCY_CODE),
             quantity=quantity,
         ),
         purchase_transaction=Transaction(
-            date=__parse_date(cell(PURCHASE_DATE_HEADER)),
-            fmv=Price(__to_float(cell(PURCHASE_PRICE_HEADER)), CURRENCY_CODE),
+            date=date_utils.parse_dd_mm_yyyy(
+                cell_text(cell(PURCHASE_DATE_HEADER))
+            ),
+            fmv=Price(to_float(cell(PURCHASE_PRICE_HEADER)), CURRENCY_CODE),
             quantity=quantity,
         ),
         # filled once every sale of the statement is known, the charges being split
         # across them in proportion to their sale value
-        expense_original=Price(0.0, REPORTING_CURRENCY_CODE),
-        expense_exempted=Price(0.0, REPORTING_CURRENCY_CODE),
-        gains=Price(
-            round(__to_float(cell(GAINS_HEADER)), 2), REPORTING_CURRENCY_CODE
-        ),
+        expense_original=Price(0.0, CURRENCY_CODE),
+        expense_exempted=Price(0.0, CURRENCY_CODE),
+        gains=Price(round(to_float(cell(GAINS_HEADER)), 2), CURRENCY_CODE),
         sale_exchange_rate=None,
         purchase_exchange_rate=None,
         sale_calc_method=NOT_APPLICABLE,
         purchase_calc_method=NOT_APPLICABLE,
-        isin=__cell_text(cell(ISIN_HEADER)),
+        isin=cell_text(cell(ISIN_HEADER)),
     )
 
 
@@ -234,7 +199,7 @@ def __parse_block(
     """
     header_row_index = None
     for row_index in range(label_row_index + 1, len(sheet_pd)):
-        if __cell_text(sheet_pd.iloc[row_index].iloc[0]) == NAME_HEADER:
+        if optional_cell_text(sheet_pd.iloc[row_index].iloc[0]) == NAME_HEADER:
             header_row_index = row_index
             break
     assert header_row_index is not None, (
@@ -254,7 +219,7 @@ def __parse_block(
     sales: t.List[AssetSale] = []
     for row_index in range(header_row_index + 1, len(sheet_pd)):
         data = sheet_pd.iloc[row_index]
-        name = __cell_text(data.iloc[0])
+        name = optional_cell_text(data.iloc[0])
         if name == "" or name in BLOCK_LABELS:
             break
         parsed_sale = __parse_row(data, column_map, section_types)
@@ -276,13 +241,11 @@ def parse_sheet(
 
     sales: t.List[AssetSale] = []
     for row_index in range(len(sheet_pd)):
-        label = __cell_text(sheet_pd.iloc[row_index].iloc[0])
+        label = optional_cell_text(sheet_pd.iloc[row_index].iloc[0])
         section_types = BLOCK_SECTION_TYPES.get(label)
         if section_types is None:
             continue
-        sales.extend(
-            __parse_block(sheet_pd, row_index, section_types, time_bounds)
-        )
+        sales.extend(__parse_block(sheet_pd, row_index, section_types, time_bounds))
     return sales, __parse_charges(sheet_pd)
 
 
@@ -311,8 +274,7 @@ def parse(
     )
 
     assert sales, (
-        "Excel sheet don't have any block matching "
-        + f"{list(BLOCK_SECTION_TYPES)}"
+        "Excel sheet don't have any block matching " + f"{list(BLOCK_SECTION_TYPES)}"
     )
 
     sales.sort(key=lambda sale: sale.sale_transaction.date["time_in_millis"])
@@ -320,7 +282,7 @@ def parse(
 
     print(
         f"Total Indian stock sale entries = {len(sales)}, "
-        + f"total gains({REPORTING_CURRENCY_CODE}) = "
+        + f"total gains({CURRENCY_CODE}) = "
         + f"{round(sum(map(lambda sale: sale.gains.price, sales)), 2)}"
     )
     return sales

@@ -1,10 +1,8 @@
 import math
 
 from utils.excel_utils import (
-    MONEY_COLUMN_TYPE,
-    PLAIN_COLUMN_TYPE,
-    REPORTING_COLUMN_TYPE,
     Column,
+    ColumnType,
     currency_column_name,
     header_names,
 )
@@ -12,7 +10,7 @@ from utils.runtime_utils import warn_missing_module
 from utils import logger, file_utils, date_utils
 from utils.rates import rbi_rates_utils
 from models.transaction import Transaction
-from models.asset_sale import AssetSale, SECTION_112A, SECTION_TYPES, SectionType
+from models.asset_sale import AssetSale, SectionType
 
 warn_missing_module("pandas")
 warn_missing_module("openpyxl")
@@ -20,9 +18,9 @@ import typing as t
 
 DEBUG = False
 
-OUTPUT_FILE_NAME = "asset_sales.xlsx"
+ASSET_SALE_OUTPUT_FILE_NAME = "asset_sales.xlsx"
 
-SUMMARY_OUTPUT_FILE_NAME = "capital_gain_summary.xlsx"
+CAPITAL_GAIN_SUMMARY_OUTPUT_FILE_NAME = "capital_gain_summary.xlsx"
 SUMMARY_OUTPUT_SHEET_NAME = "Capital Gain Summary"
 SECTION_COLUMN = "Section"
 
@@ -40,9 +38,6 @@ QUARTERS = (
 )
 
 SCHEDULE_112A_OUTPUT_FILE_NAME = "schedule_112a.csv"
-
-# only used to label the reporting currency columns of an empty report
-DEFAULT_REPORTING_CURRENCY_CODE = "INR"
 
 # printed wherever the source does not apply an exchange rate to a leg
 UNUSED_VALUE_MARKER = "-"
@@ -66,20 +61,20 @@ PURCHASE_EXCHANGE_RATE_COLUMN = "Exchange Rate(Purchase)"
 PURCHASE_CALC_METHOD_COLUMN = "Purchase Calc Method"
 
 RAW_SHEET_COLUMNS = [
-    Column(PLAIN_COLUMN_TYPE, SERIAL_NUMBER_COLUMN),
-    Column(PLAIN_COLUMN_TYPE, ASSET_DESCRIPTION_COLUMN),
-    Column(PLAIN_COLUMN_TYPE, BROKER_COLUMN),
-    Column(PLAIN_COLUMN_TYPE, SALE_DATE_COLUMN),
-    Column(PLAIN_COLUMN_TYPE, PURCHASE_DATE_COLUMN),
-    Column(MONEY_COLUMN_TYPE, SALE_PRICE_COLUMN),
-    Column(MONEY_COLUMN_TYPE, PURCHASE_PRICE_COLUMN),
-    Column(REPORTING_COLUMN_TYPE, EXPENSE_COLUMN),
-    Column(REPORTING_COLUMN_TYPE, GAINS_COLUMN),
-    Column(PLAIN_COLUMN_TYPE, UNITS_COLUMN),
-    Column(PLAIN_COLUMN_TYPE, SALE_EXCHANGE_RATE_COLUMN),
-    Column(PLAIN_COLUMN_TYPE, SALE_CALC_METHOD_COLUMN),
-    Column(PLAIN_COLUMN_TYPE, PURCHASE_EXCHANGE_RATE_COLUMN),
-    Column(PLAIN_COLUMN_TYPE, PURCHASE_CALC_METHOD_COLUMN),
+    Column(ColumnType.PLAIN, SERIAL_NUMBER_COLUMN),
+    Column(ColumnType.PLAIN, ASSET_DESCRIPTION_COLUMN),
+    Column(ColumnType.PLAIN, BROKER_COLUMN),
+    Column(ColumnType.PLAIN, SALE_DATE_COLUMN),
+    Column(ColumnType.PLAIN, PURCHASE_DATE_COLUMN),
+    Column(ColumnType.MULTI_CURRENCY, SALE_PRICE_COLUMN),
+    Column(ColumnType.MULTI_CURRENCY, PURCHASE_PRICE_COLUMN),
+    Column(ColumnType.CURRENCY, EXPENSE_COLUMN),
+    Column(ColumnType.CURRENCY, GAINS_COLUMN),
+    Column(ColumnType.PLAIN, UNITS_COLUMN),
+    Column(ColumnType.PLAIN, SALE_EXCHANGE_RATE_COLUMN),
+    Column(ColumnType.PLAIN, SALE_CALC_METHOD_COLUMN),
+    Column(ColumnType.PLAIN, PURCHASE_EXCHANGE_RATE_COLUMN),
+    Column(ColumnType.PLAIN, PURCHASE_CALC_METHOD_COLUMN),
 ]
 
 # schedule CG figures printed under the table, each sitting in the column it totals
@@ -90,7 +85,7 @@ TRANSFER_EXPENDITURE_LABEL = (
 )
 
 # `<label>, <column totalled>`, every total being stated in whole rupees
-SUMMARY_COLUMNS = (
+SUMMARY_AND_RAW_COLUMNS_MAP = (
     (FULL_VALUE_OF_CONSIDERATION_LABEL, SALE_PRICE_COLUMN),
     (COST_OF_ACQUISITION_LABEL, PURCHASE_PRICE_COLUMN),
     (TRANSFER_EXPENDITURE_LABEL, EXPENSE_COLUMN),
@@ -124,9 +119,9 @@ SCHEDULE_112A_COLUMNS = [
 # its cost being grandfathered to the 31-Jan-2018 fair market value under section
 # 55(2)(ac). A later one carries no grandfathering and is filed as an aggregate
 GRANDFATHERING_CUTOFF_DATE = "2018-01-31"
-GRANDFATHERING_CUTOFF_IN_MS = date_utils.parse_yyyy_mm_dd(
-    GRANDFATHERING_CUTOFF_DATE
-)["time_in_millis"]
+GRANDFATHERING_CUTOFF_IN_MS = date_utils.parse_yyyy_mm_dd(GRANDFATHERING_CUTOFF_DATE)[
+    "time_in_millis"
+]
 ACQUIRED_ON_OR_BEFORE_CUTOFF_MARKER = "On or before"
 
 
@@ -145,14 +140,14 @@ def __exchange_rate(sale: AssetSale, transaction: Transaction) -> float:
     )
 
 
-def __original_value(transaction: Transaction) -> float:
-    return round(transaction.fmv.price * transaction.quantity, 2)
-
-
-def __reporting_currency_code(sales: t.List[AssetSale]) -> str:
+def __gain_currency_code(sales: t.List[AssetSale]) -> str:
+    """
+    The one currency the sales state their gains in, which is what the reporting
+    currency columns are labelled with
+    """
     codes = {sale.gains.currency_code for sale in sales}
-    assert len(codes) <= 1, f"Sales report gains in more than one currency: {codes}"
-    return codes.pop() if codes else DEFAULT_REPORTING_CURRENCY_CODE
+    assert len(codes) == 1, f"Sales report gains in more than one currency: {codes}"
+    return codes.pop()
 
 
 def __currency_codes(sales: t.List[AssetSale], reporting_code: str) -> t.List[str]:
@@ -165,16 +160,6 @@ def __currency_codes(sales: t.List[AssetSale], reporting_code: str) -> t.List[st
     return sorted(codes) + [reporting_code]
 
 
-def __serial_order_key(sale: AssetSale) -> t.Tuple[str, int]:
-    """
-    Serial numbers run broker wise and, within a broker, purchase date wise
-    """
-    return (
-        sale.broker.casefold(),
-        sale.purchase_transaction.date["time_in_millis"],
-    )
-
-
 def __build_row(
     serial_number: int, sale: AssetSale, columns: t.List[str]
 ) -> t.Tuple[t.Any, ...]:
@@ -184,8 +169,8 @@ def __build_row(
     """
     reporting_code = sale.gains.currency_code
     original_code = sale.sale_transaction.fmv.currency_code
-    original_sale_value = __original_value(sale.sale_transaction)
-    original_purchase_value = __original_value(sale.purchase_transaction)
+    original_sale_value = sale.sale_transaction.total_value()
+    original_purchase_value = sale.purchase_transaction.total_value()
     # a sale traded in the reporting currency has both column sets land on the same
     # name, so the reporting entries are written last and win the collision
     values: t.Dict[str, t.Any] = {
@@ -219,8 +204,7 @@ def __build_row(
             original_sale_value * __exchange_rate(sale, sale.sale_transaction), 2
         ),
         currency_column_name(PURCHASE_PRICE_COLUMN, reporting_code): round(
-            original_purchase_value
-            * __exchange_rate(sale, sale.purchase_transaction),
+            original_purchase_value * __exchange_rate(sale, sale.purchase_transaction),
             2,
         ),
     }
@@ -243,11 +227,9 @@ def __section_totals(
     the sheet itself prints
     """
     totals: t.Dict[str, int] = {}
-    for label, column in SUMMARY_COLUMNS:
+    for label, column in SUMMARY_AND_RAW_COLUMNS_MAP:
         column_index = columns.index(currency_column_name(column, reporting_code))
-        totals[label] = __whole_rupees(
-            sum(row[column_index] or 0.0 for row in rows)
-        )
+        totals[label] = __whole_rupees(sum(row[column_index] or 0.0 for row in rows))
     return totals
 
 
@@ -261,7 +243,7 @@ def __build_summary_rows(
     the column it totals
     """
     summary_rows: t.List[t.Tuple[t.Any, ...]] = [tuple(None for _ in columns)]
-    for label, column in SUMMARY_COLUMNS:
+    for label, column in SUMMARY_AND_RAW_COLUMNS_MAP:
         values: t.List[t.Any] = [None] * len(columns)
         values[0] = label
         values[columns.index(currency_column_name(column, reporting_code))] = totals[
@@ -273,24 +255,22 @@ def __build_summary_rows(
 
 def __build_sheet(
     section_type: SectionType, sales: t.List[AssetSale]
-) -> t.Tuple[
-    t.Tuple[str, t.List[str], t.List[t.Tuple[t.Any, ...]]], t.Dict[str, int]
-]:
+) -> t.Tuple[t.Tuple[str, t.List[str], t.List[t.Tuple[t.Any, ...]]], t.Dict[str, int]]:
     """
     A sheet holds the sales of one schedule CG section, its columns covering only
     the currencies that section's sales are traded in. Returned alongside the
     section's schedule CG totals
     """
-    reporting_currency_code = __reporting_currency_code(sales)
+    gain_currency_code = __gain_currency_code(sales)
     columns = header_names(
         RAW_SHEET_COLUMNS,
-        __currency_codes(sales, reporting_currency_code),
-        reporting_currency_code,
+        __currency_codes(sales, gain_currency_code),
+        gain_currency_code,
     )
 
     print(
         f"Total {section_type} asset sale entries = {len(sales)}, "
-        + f"total gains({reporting_currency_code}) = "
+        + f"total gains({gain_currency_code}) = "
         + f"{round(sum(map(lambda sale: sale.gains.price, sales)), 2)}"
     )
 
@@ -298,13 +278,12 @@ def __build_sheet(
         __build_row(serial_number, sale, columns)
         for serial_number, sale in enumerate(sales, start=1)
     ]
-    totals = __section_totals(rows, columns, reporting_currency_code)
+    totals = __section_totals(rows, columns, gain_currency_code)
     return (
         (
             section_type,
             columns,
-            rows
-            + __build_summary_rows(totals, columns, reporting_currency_code),
+            rows + __build_summary_rows(totals, columns, gain_currency_code),
         ),
         totals,
     )
@@ -404,10 +383,10 @@ def __write_summary(
     The figures that go on the return: one row per schedule CG section, then a sheet
     per section breaking its gain up quarter wise
     """
-    columns = [SECTION_COLUMN] + [label for label, _ in SUMMARY_COLUMNS]
+    columns = [SECTION_COLUMN] + [label for label, _ in SUMMARY_AND_RAW_COLUMNS_MAP]
     file_utils.write_excel_sheets_to_file(
         output_folder_abs_path,
-        SUMMARY_OUTPUT_FILE_NAME,
+        CAPITAL_GAIN_SUMMARY_OUTPUT_FILE_NAME,
         [
             (
                 SUMMARY_OUTPUT_SHEET_NAME,
@@ -416,7 +395,7 @@ def __write_summary(
                     (section_type,)
                     + tuple(
                         section_totals[section_type][label]
-                        for label, _ in SUMMARY_COLUMNS
+                        for label, _ in SUMMARY_AND_RAW_COLUMNS_MAP
                     )
                     for section_type in section_types
                 ],
@@ -453,7 +432,7 @@ def __schedule_112a_row(sale: AssetSale) -> t.Tuple[t.Any, ...]:
     quantity = sale_transaction.quantity
     # the utility rejects a fractional full value of consideration
     consideration = __whole_rupees(sale_transaction.fmv.price * quantity)
-    cost = round(purchase_transaction.fmv.price * quantity, 2)
+    cost = purchase_transaction.total_value()
     fmv_total = round(sale.fmv_31_jan_2018.price * quantity, 2)
     grandfathered_cost = min(consideration, fmv_total)
     cost_without_indexation = max(cost, grandfathered_cost)
@@ -497,14 +476,21 @@ def parse(
     output_folder_abs_path: str,
 ) -> t.List[AssetSale]:
     logger.DEBUG = DEBUG
-    ordered_sales = sorted(sales, key=__serial_order_key)
+    # serial numbers run broker wise and, within a broker, purchase date wise
+    ordered_sales = sorted(
+        sales,
+        key=lambda sale: (
+            sale.broker.casefold(),
+            sale.purchase_transaction.date["time_in_millis"],
+        ),
+    )
 
     # a sale is reported under exactly one schedule CG section, so every section
     # present gets its own sheet inside the one workbook
     present_section_types = {sale.section_type for sale in ordered_sales}
     section_types = [
         section_type
-        for section_type in SECTION_TYPES
+        for section_type in SectionType
         if section_type in present_section_types
     ]
 
@@ -515,19 +501,17 @@ def parse(
         section_sales[section_type] = [
             sale for sale in ordered_sales if sale.section_type == section_type
         ]
-        sheet, totals = __build_sheet(
-            section_type, section_sales[section_type]
-        )
+        sheet, totals = __build_sheet(section_type, section_sales[section_type])
         sheets.append(sheet)
         section_totals[section_type] = totals
 
     file_utils.write_excel_sheets_to_file(
         output_folder_abs_path,
-        OUTPUT_FILE_NAME,
+        ASSET_SALE_OUTPUT_FILE_NAME,
         sheets,
-        True,
+        override=True,
         is_raw=True,
-        print_path_to_console=True,
+        print_path_to_console=False,
     )
 
     __write_summary(
@@ -539,7 +523,7 @@ def parse(
     schedule_112a_sales = [
         sale
         for sale in ordered_sales
-        if sale.section_type == SECTION_112A
+        if sale.section_type == SectionType.SECTION_112A
         and sale.purchase_transaction.date["time_in_millis"]
         <= GRANDFATHERING_CUTOFF_IN_MS
     ]
@@ -547,7 +531,7 @@ def parse(
         __write_schedule_112a(output_folder_abs_path, schedule_112a_sales)
     else:
         logger.log(
-            f"No {SECTION_112A} sale was acquired on or before"
+            f"No {SectionType.SECTION_112A} sale was acquired on or before"
             f" {GRANDFATHERING_CUTOFF_DATE}, skipping"
             f" {SCHEDULE_112A_OUTPUT_FILE_NAME}"
         )
