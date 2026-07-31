@@ -9,8 +9,13 @@ class Price:
 
 
 @dataclass
-class Purchase:
+class Transaction:
     date: DateObj
-    purchase_fmv: Price
+    fmv: Price
     quantity: float
+
+
+@dataclass
+class TransactionWithTicker:
+    purchase: Transaction
     ticker: str

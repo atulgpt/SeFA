@@ -7,6 +7,7 @@
     "disp",
     "ESPP",
     "etrade",
+    "INDMONEY",
     "iterrows",
     "millis",
     "openpyxl",
@@ -15,5 +16,8 @@
     "witholding"
   ],
   "python.testing.unittestEnabled": false,
-  "python.testing.pytestEnabled": true
+  "python.testing.pytestEnabled": true,
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter"
+  }
 }

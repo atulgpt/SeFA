@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["models*", "parser*", "utils*"]
+include = ["aggregator*", "models*", "parser*", "utils*"]
 
 [tool.pylint]
 # Configuration for Pylint

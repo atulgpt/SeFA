@@ -8,7 +8,9 @@ from datetime import date, timedelta
 from parser.demat.etrade import etrade_benefit_history_parser
 from utils import logger, date_utils
 from parser.demat.etrade import etrade_holdings_bystatus_parser
+from parser.demat.indmoney import indmoney_us_stocks_parser
 from parser.itr import faa3_parser
+from aggregator.foreign_listed_assets import foreign_listed_asset_aggregator
 from utils.ticker_mapping import ticker_currency_info, ticker_org_info
 from refresh_historic_data import refresh, DEFAULT_START
 import refresh_rbi_rates
@@ -18,7 +20,19 @@ script_path = os.path.realpath(os.path.dirname(__file__))
 DEFAULT_OUTPUT_FOLDER_NAME = "output"
 default_output_folder_abs_path = os.path.join(script_path, DEFAULT_OUTPUT_FOLDER_NAME)
 DEFAULT_SOURCE_MODE = "etrade_benefit_history"
+ETRADE_HOLDINGS_BYSTATUS_SOURCE_MODE = "etrade_holdings_bystatus"
+INDMONEY_US_STOCKS_SOURCE_MODE = "indmoney_us_stocks"
+SOURCE_MODES = [
+    DEFAULT_SOURCE_MODE,
+    ETRADE_HOLDINGS_BYSTATUS_SOURCE_MODE,
+    INDMONEY_US_STOCKS_SOURCE_MODE,
+]
 DEFAULT_CALENDER_MODE = "calendar"
+FINANCIAL_CALENDER_MODE = "financial"
+CALENDER_MODES = [
+    DEFAULT_CALENDER_MODE,
+    FINANCIAL_CALENDER_MODE,
+]
 
 
 def main():
@@ -39,7 +53,10 @@ def main():
         "--input",
         action="store",
         dest="input_excel_file",
-        help="Specify the absolute path for input benefit history(BenefitHistory.xlsx) Excel file",
+        help="Specify the absolute path for the input Excel file of the chosen source"
+        f" mode: benefit history(BenefitHistory.xlsx) for {DEFAULT_SOURCE_MODE},"
+        f" holdings by status for {ETRADE_HOLDINGS_BYSTATUS_SOURCE_MODE} and the"
+        f" consolidated tax report for {INDMONEY_US_STOCKS_SOURCE_MODE}",
         required=True,
     )
     parser.add_argument(
@@ -48,8 +65,10 @@ def main():
         action="store",
         default=DEFAULT_SOURCE_MODE,
         dest="source_mode",
-        choices=[f"{DEFAULT_SOURCE_MODE}", "etrade_holdings_bystatus"],
-        help=f"Specify the source mode, default = {DEFAULT_SOURCE_MODE}",
+        choices=SOURCE_MODES,
+        help=f"Specify the source mode, default = {DEFAULT_SOURCE_MODE}."
+        f" {INDMONEY_US_STOCKS_SOURCE_MODE} reports realized US stock sales and does"
+        " not feed the schedule FA generation",
     )
     parser.add_argument(
         "-cal",
@@ -58,7 +77,7 @@ def main():
         type=str,
         default=DEFAULT_CALENDER_MODE,
         dest="calendar_mode",
-        choices=[f"{DEFAULT_CALENDER_MODE}", "financial"],
+        choices=CALENDER_MODES,
         help=f"Specify the calendar period for consideration, default = {DEFAULT_CALENDER_MODE}",
     )
     parser.add_argument(
@@ -92,13 +111,26 @@ def main():
     logger.DEBUG = args.debug
     etrade_benefit_history_parser.DEBUG = args.debug
     etrade_holdings_bystatus_parser.DEBUG = args.debug
+    indmoney_us_stocks_parser.DEBUG = args.debug
+    foreign_listed_asset_aggregator.DEBUG = args.debug
 
     # Refresh before parsing: RSU rows resolve their FMV from the share price CSV
     # during parsing, so the historic data must be up to date beforehand.
     if not args.skip_refresh:
         refresh_historic_data()
 
-    if args.source_mode == "etrade_holdings_bystatus":
+    if args.source_mode == INDMONEY_US_STOCKS_SOURCE_MODE:
+        # realised sales, which schedule FA under section A3 does not consume
+        sales = indmoney_us_stocks_parser.parse(
+            args.input_excel_file,
+            time_bounds=date_utils.calendar_range(
+                args.calendar_mode, args.assessment_year
+            ),
+        )
+        foreign_listed_asset_aggregator.parse(sales, args.output_folder)
+        return
+
+    if args.source_mode == ETRADE_HOLDINGS_BYSTATUS_SOURCE_MODE:
         purchases = etrade_holdings_bystatus_parser.parse(
             args.input_excel_file, args.output_folder
         )

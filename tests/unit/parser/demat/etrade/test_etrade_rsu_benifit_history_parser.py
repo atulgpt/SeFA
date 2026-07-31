@@ -22,9 +22,9 @@ def test_rsu_parsing_with_only_released_shares(
     )
     assert len(rsu_purchases) == 1
     rsu_purchase = rsu_purchases[0]
-    assert rsu_purchase.quantity == 0.5
+    assert rsu_purchase.purchase.quantity == 0.5
     assert rsu_purchase.ticker == "adbe"
-    assert rsu_purchase.date == {
+    assert rsu_purchase.purchase.date == {
         "disp_time": "15-Oct-2023",
         "orig_disp_time": "10/15/2023",
         "time_in_millis": 1697328000000,
@@ -70,4 +70,4 @@ def test_rsu_row_with_released_share():
     )
 
     assert rsu_purchase is not None
-    assert rsu_purchase.quantity == 0.5
+    assert rsu_purchase.purchase.quantity == 0.5

@@ -34,7 +34,7 @@ def test_espp_parsing_row_with_valid_purchase():
         )
     )
     assert espp_purchase is not None
-    assert espp_purchase.quantity == 2.0
+    assert espp_purchase.purchase.quantity == 2.0
 
 
 def test_espp_parsing_with_only_released_shares(
@@ -45,11 +45,11 @@ def test_espp_parsing_with_only_released_shares(
     )
     assert len(espp_purchases) == 1
     espp_purchase = espp_purchases[0]
-    assert espp_purchase.quantity == 2
-    assert espp_purchase.purchase_fmv.currency_code == "USD"
-    assert espp_purchase.purchase_fmv.price == 435.31
+    assert espp_purchase.purchase.quantity == 2
+    assert espp_purchase.purchase.purchase_fmv.currency_code == "USD"
+    assert espp_purchase.purchase.purchase_fmv.price == 435.31
     assert espp_purchase.ticker == "adbe"
-    assert espp_purchase.date == {
+    assert espp_purchase.purchase.date == {
         "disp_time": "30-Jun-2020",
         "orig_disp_time": "30-JUN-2020",
         "time_in_millis": 1593475200000,
