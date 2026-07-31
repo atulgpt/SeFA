@@ -53,3 +53,7 @@ class AssetSale:
     sale_calc_method: CalcMethod
     purchase_exchange_rate: t.Optional[float]
     purchase_calc_method: CalcMethod
+    # only the sources that state it fill these in, both being needed to report a
+    # holding acquired on or before 31-Jan-2018 under schedule 112A
+    isin: t.Optional[str] = None
+    fmv_31_jan_2018: t.Optional[Price] = None

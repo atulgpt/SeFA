@@ -51,6 +51,7 @@ QUANTITY_HEADER = "Matched Quantity"
 PURCHASE_PRICE_HEADER = "Purchase Price"
 SALE_DATE_HEADER = "Redeem Date"
 SALE_PRICE_HEADER = "Redeem Price"
+GRANDFATHERED_NAV_HEADER = "Grandfathered Nav"
 SHORT_TERM_GAINS_HEADER = "Short Term-Capital Gain"
 LONG_TERM_GAINS_HEADER = "Long Term-Capital Gain"
 
@@ -61,6 +62,7 @@ REQUIRED_HEADERS = (
     PURCHASE_PRICE_HEADER,
     SALE_DATE_HEADER,
     SALE_PRICE_HEADER,
+    GRANDFATHERED_NAV_HEADER,
     SHORT_TERM_GAINS_HEADER,
     LONG_TERM_GAINS_HEADER,
 )
@@ -163,6 +165,9 @@ def __parse_row(
         purchase_exchange_rate=None,
         sale_calc_method=NOT_APPLICABLE,
         purchase_calc_method=NOT_APPLICABLE,
+        fmv_31_jan_2018=Price(
+            __to_float(cell(GRANDFATHERED_NAV_HEADER)), CURRENCY_CODE
+        ),
     )
 
 
@@ -241,12 +246,10 @@ def parse(
         for sheet_name in xl.sheet_names:
             sales.extend(parse_sheet(xl, sheet_name, time_bounds))
 
-    if not sales:
-        logger.log(
-            "Excel sheet don't have any block matching "
-            + f"{list(CATEGORY_SECTION_TYPES)}"
-        )
-        return []
+    assert sales, (
+        "Excel sheet don't have any block matching "
+        + f"{list(CATEGORY_SECTION_TYPES)}"
+    )
 
     sales.sort(key=lambda sale: sale.sale_transaction.date["time_in_millis"])
 

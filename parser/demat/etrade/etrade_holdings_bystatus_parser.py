@@ -1,4 +1,5 @@
 import operator
+import os
 from utils.runtime_utils import warn_missing_module
 from utils.ticker_mapping import ticker_currency_info
 from utils import logger, file_utils, date_utils
@@ -14,6 +15,10 @@ import itertools
 DEBUG = False
 
 from models.transaction import Transaction, TransactionWithTicker, Price
+from parser.itr import faa3_parser
+
+# raw workings of this source, told apart by the operation mode they were read from
+PURCHASES_OUTPUT_FILE_NAME = "purchases_etrade_holdings_bystatus.json"
 
 SELLABLE_SHEET_NAME = "Sellable"
 
@@ -66,8 +71,12 @@ def parse(input_file_abs_path: str, output_folder_abs_path: str) -> t.List[Trans
     #    key=lambda purchase: purchase.date["time_in_millis"],
     # )
     file_utils.write_to_file(
-        output_folder_abs_path,
-        "purchases.json",
+        os.path.join(
+            output_folder_abs_path,
+            file_utils.RAW_OUTPUT_FOLDER_NAME,
+            faa3_parser.RAW_FOLDER_NAME,
+        ),
+        PURCHASES_OUTPUT_FILE_NAME,
         purchases,
         True,
     )

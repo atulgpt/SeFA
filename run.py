@@ -13,6 +13,7 @@ from parser.demat.indmoney import indmoney_us_stocks_parser
 from parser.demat.groww import groww_indian_mf_parser, groww_indian_stocks_parser
 from models.asset_sale import AssetSale
 from models.transaction import TransactionWithTicker
+from models.itr.faa3 import FAA3
 from parser.itr import faa3_parser
 from aggregator import asset_aggregator
 from utils.ticker_mapping import ticker_currency_info, ticker_org_info
@@ -23,28 +24,28 @@ import refresh_rbi_rates
 script_path = os.path.realpath(os.path.dirname(__file__))
 DEFAULT_OUTPUT_FOLDER_NAME = "output"
 default_output_folder_abs_path = os.path.join(script_path, DEFAULT_OUTPUT_FOLDER_NAME)
-ETRADE_BENEFIT_HISTORY_SOURCE_MODE = "etrade_benefit_history"
-ETRADE_HOLDINGS_BYSTATUS_SOURCE_MODE = "etrade_holdings_bystatus"
-INDMONEY_US_STOCKS_SOURCE_MODE = "indmoney_us_stocks"
-GROWW_INDIAN_STOCKS_SOURCE_MODE = "groww_indian_stocks"
-GROWW_INDIAN_MF_SOURCE_MODE = "groww_indian_mf"
+ETRADE_BENEFIT_HISTORY_OPERATION_MODE = "etrade_benefit_history"
+ETRADE_HOLDINGS_BYSTATUS_OPERATION_MODE = "etrade_holdings_bystatus"
+INDMONEY_US_STOCKS_OPERATION_MODE = "indmoney_us_stocks"
+GROWW_INDIAN_STOCKS_OPERATION_MODE = "groww_indian_stocks"
+GROWW_INDIAN_MF_OPERATION_MODE = "groww_indian_mf"
 
-# Source modes reporting realized sales, which schedule FA under section A3 does
+# Operation modes reporting realized sales, which schedule FA under section A3 does
 # not consume. A mode lists every parser that reads a table out of that source's
 # report, their sales being aggregated together
-SALE_SOURCE_PARSERS = {
-    INDMONEY_US_STOCKS_SOURCE_MODE: (indmoney_us_stocks_parser,),
-    GROWW_INDIAN_STOCKS_SOURCE_MODE: (groww_indian_stocks_parser,),
-    GROWW_INDIAN_MF_SOURCE_MODE: (groww_indian_mf_parser,),
+SALE_OPERATION_PARSERS = {
+    INDMONEY_US_STOCKS_OPERATION_MODE: (indmoney_us_stocks_parser,),
+    GROWW_INDIAN_STOCKS_OPERATION_MODE: (groww_indian_stocks_parser,),
+    GROWW_INDIAN_MF_OPERATION_MODE: (groww_indian_mf_parser,),
 }
 
-SOURCE_MODES = [
-    ETRADE_BENEFIT_HISTORY_SOURCE_MODE,
-    ETRADE_HOLDINGS_BYSTATUS_SOURCE_MODE,
-    *SALE_SOURCE_PARSERS,
+OPERATION_MODES = [
+    ETRADE_BENEFIT_HISTORY_OPERATION_MODE,
+    ETRADE_HOLDINGS_BYSTATUS_OPERATION_MODE,
+    *SALE_OPERATION_PARSERS,
 ]
 
-# an input is given as `<source mode>:<file path>`, which is what lets one run read
+# an input is given as `<operation mode>:<file path>`, which is what lets one run read
 # a report per source instead of a single file of a single mode
 INPUT_SEPARATOR = ":"
 
@@ -58,21 +59,21 @@ CALENDER_MODES = [
 
 def __parse_inputs(inputs: t.List[str]) -> t.List[t.Tuple[str, str]]:
     """
-    Splits every `<source mode>:<file path>` input into its pair. The same source
-    mode may be repeated when a source is split across more than one file
+    Splits every `<operation mode>:<file path>` input into its pair. The same
+    operation mode may be repeated when a source is split across more than one file
     """
     parsed_inputs: t.List[t.Tuple[str, str]] = []
     for value in inputs:
-        source_mode, separator, input_excel_file = value.partition(INPUT_SEPARATOR)
+        operation_mode, separator, input_excel_file = value.partition(INPUT_SEPARATOR)
         assert separator != "" and input_excel_file != "", (
             f"Input {value} is not of the form"
-            f" <source mode>{INPUT_SEPARATOR}<absolute path of the input Excel file>"
+            f" <operation mode>{INPUT_SEPARATOR}<absolute path of the input Excel file>"
         )
-        assert source_mode in SOURCE_MODES, (
-            f"Input {value} carries the unsupported source mode {source_mode}."
-            f" Supported source modes = {SOURCE_MODES}"
+        assert operation_mode in OPERATION_MODES, (
+            f"Input {value} carries the unsupported operation mode {operation_mode}."
+            f" Supported operation modes = {OPERATION_MODES}"
         )
-        parsed_inputs.append((source_mode, input_excel_file))
+        parsed_inputs.append((operation_mode, input_excel_file))
     return parsed_inputs
 
 
@@ -95,17 +96,17 @@ def main():
         action="store",
         nargs="+",
         dest="inputs",
-        metavar=f"SOURCE_MODE{INPUT_SEPARATOR}INPUT_EXCEL_FILE",
+        metavar=f"OPERATION_MODE{INPUT_SEPARATOR}INPUT_EXCEL_FILE",
         help="Specify one or more"
-        f" <source mode>{INPUT_SEPARATOR}<absolute path of the input Excel file>"
-        f" pairs, the supported source modes being {', '.join(SOURCE_MODES)}. The"
+        f" <operation mode>{INPUT_SEPARATOR}<absolute path of the input Excel file>"
+        f" pairs, the supported operation modes being {', '.join(OPERATION_MODES)}. The"
         f" expected report is the benefit history(BenefitHistory.xlsx) for"
-        f" {ETRADE_BENEFIT_HISTORY_SOURCE_MODE}, the holdings by status for"
-        f" {ETRADE_HOLDINGS_BYSTATUS_SOURCE_MODE}, the consolidated tax report for"
-        f" {INDMONEY_US_STOCKS_SOURCE_MODE} and the stocks/mutual funds capital"
+        f" {ETRADE_BENEFIT_HISTORY_OPERATION_MODE}, the holdings by status for"
+        f" {ETRADE_HOLDINGS_BYSTATUS_OPERATION_MODE}, the consolidated tax report for"
+        f" {INDMONEY_US_STOCKS_OPERATION_MODE} and the stocks/mutual funds capital"
         " gains statement for"
-        f" {GROWW_INDIAN_STOCKS_SOURCE_MODE}/{GROWW_INDIAN_MF_SOURCE_MODE}."
-        f" {', '.join(SALE_SOURCE_PARSERS)} report realized sales and do not feed"
+        f" {GROWW_INDIAN_STOCKS_OPERATION_MODE}/{GROWW_INDIAN_MF_OPERATION_MODE}."
+        f" {', '.join(SALE_OPERATION_PARSERS)} report realized sales and do not feed"
         " the schedule FA generation",
         required=True,
     )
@@ -150,9 +151,9 @@ def main():
     logger.DEBUG = args.debug
     etrade_benefit_history_parser.DEBUG = args.debug
     etrade_holdings_bystatus_parser.DEBUG = args.debug
-    for sale_source_parsers in SALE_SOURCE_PARSERS.values():
-        for sale_source_parser in sale_source_parsers:
-            sale_source_parser.DEBUG = args.debug
+    for sale_operation_parsers in SALE_OPERATION_PARSERS.values():
+        for sale_operation_parser in sale_operation_parsers:
+            sale_operation_parser.DEBUG = args.debug
     asset_aggregator.DEBUG = args.debug
 
     # Refresh before parsing: RSU rows resolve their FMV from the share price CSV
@@ -163,23 +164,24 @@ def main():
     time_bounds = date_utils.calendar_range(args.calendar_mode, args.assessment_year)
 
     sales: t.List[AssetSale] = []
-    purchases: t.List[TransactionWithTicker] = []
-    for source_mode, input_excel_file in __parse_inputs(args.inputs):
-        if source_mode in SALE_SOURCE_PARSERS:
-            for sale_source_parser in SALE_SOURCE_PARSERS[source_mode]:
+    # kept per operation mode so that every source's raw workings stay told apart
+    purchases: t.Dict[str, t.List[TransactionWithTicker]] = {}
+    for operation_mode, input_excel_file in __parse_inputs(args.inputs):
+        if operation_mode in SALE_OPERATION_PARSERS:
+            for sale_operation_parser in SALE_OPERATION_PARSERS[operation_mode]:
                 sales.extend(
-                    sale_source_parser.parse(
+                    sale_operation_parser.parse(
                         input_excel_file, time_bounds=time_bounds
                     )
                 )
-        elif source_mode == ETRADE_HOLDINGS_BYSTATUS_SOURCE_MODE:
-            purchases.extend(
+        elif operation_mode == ETRADE_HOLDINGS_BYSTATUS_OPERATION_MODE:
+            purchases.setdefault(operation_mode, []).extend(
                 etrade_holdings_bystatus_parser.parse(
                     input_excel_file, args.output_folder
                 )
             )
-        elif source_mode == ETRADE_BENEFIT_HISTORY_SOURCE_MODE:
-            purchases.extend(
+        elif operation_mode == ETRADE_BENEFIT_HISTORY_OPERATION_MODE:
+            purchases.setdefault(operation_mode, []).extend(
                 etrade_benefit_history_parser.parse(
                     input_excel_file,
                     args.output_folder,
@@ -195,10 +197,20 @@ def main():
     if sales:
         asset_aggregator.parse(sales, args.output_folder)
 
-    if purchases:
-        faa3_parser.parse(
-            args.calendar_mode, purchases, args.assessment_year, args.output_folder
+    # every source writes its own raw workings, the filed schedule FA holding them all
+    fa_entries: t.List[FAA3] = []
+    for operation_mode, source_purchases in purchases.items():
+        fa_entries.extend(
+            faa3_parser.parse(
+                operation_mode,
+                args.calendar_mode,
+                source_purchases,
+                args.assessment_year,
+                args.output_folder,
+            )
         )
+    if fa_entries:
+        faa3_parser.write_fa_entries(fa_entries, args.output_folder)
 
 
 def refresh_historic_data():

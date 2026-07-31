@@ -57,6 +57,7 @@ STT_CHARGE_LABEL = "STT"
 TOTAL_CHARGE_LABEL = "Total"
 
 NAME_HEADER = "Stock name"
+ISIN_HEADER = "ISIN"
 QUANTITY_HEADER = "Quantity"
 PURCHASE_DATE_HEADER = "Buy date"
 PURCHASE_PRICE_HEADER = "Buy price"
@@ -66,6 +67,7 @@ GAINS_HEADER = "Realised P&L"
 
 REQUIRED_HEADERS = (
     NAME_HEADER,
+    ISIN_HEADER,
     QUANTITY_HEADER,
     PURCHASE_DATE_HEADER,
     PURCHASE_PRICE_HEADER,
@@ -216,6 +218,7 @@ def __parse_row(
         purchase_exchange_rate=None,
         sale_calc_method=NOT_APPLICABLE,
         purchase_calc_method=NOT_APPLICABLE,
+        isin=__cell_text(cell(ISIN_HEADER)),
     )
 
 
@@ -307,12 +310,10 @@ def parse(
         f" {TOTAL_CHARGE_LABEL} and the {STT_CHARGE_LABEL} charges"
     )
 
-    if not sales:
-        logger.log(
-            "Excel sheet don't have any block matching "
-            + f"{list(BLOCK_SECTION_TYPES)}"
-        )
-        return []
+    assert sales, (
+        "Excel sheet don't have any block matching "
+        + f"{list(BLOCK_SECTION_TYPES)}"
+    )
 
     sales.sort(key=lambda sale: sale.sale_transaction.date["time_in_millis"])
     __apply_charges(sales, deductible_charges)
