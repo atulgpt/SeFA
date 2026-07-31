@@ -9,6 +9,29 @@ from utils.rates import rbi_rates_utils
 from models.transaction import Transaction, TransactionWithTicker, Price
 from models.itr.faa3 import FAA3
 
+FA_ENTRIES_OUTPUT_FILE_NAME = "fa_entries.csv"
+
+# every schedule FA source is held with the same broker, so its raw workings share
+# one folder and are told apart by the operation mode they were read from
+RAW_FOLDER_NAME = "etrade"
+RAW_FA_ENTRIES_FILE_NAME_FORMAT = "fa_raw_{operation_mode}_entries.json"
+RAW_FA_ENTRIES_CSV_FILE_NAME_FORMAT = "fa_raw_{operation_mode}_entries.csv"
+
+FA_ENTRIES_COLUMNS = [
+    "Country/Region name",
+    "Country Name and Code",
+    "Name of entity",
+    "Address of entity",
+    "ZIP Code",
+    "Nature of entity",
+    "Date of acquiring the interest",
+    "Initial value of the investment",
+    "Peak value of investment during the Period",
+    "Closing balance",
+    "Total gross amount paid/credited with respect to the holding during the period",
+    "Total gross proceeds from sale or redemption of investment during the period",
+]
+
 
 def parse_org_purchases(
     ticker: str,
@@ -116,75 +139,90 @@ def parse_org_purchases(
             )
         )
 
-    file_utils.write_to_file(
-        os.path.join(output_folder_abs_path, ticker),
-        "raw_fa_entries.json",
-        fa_entries,
-        True,
-    )
-    file_utils.write_to_file(
-        os.path.join(output_folder_abs_path, ticker),
-        "raw_fa_entries.json",
-        fa_entries,
-        True,
-    )
-    file_utils.write_csv_to_file(
-        os.path.join(output_folder_abs_path, ticker),
-        "fa_entries.csv",
-        [
-            "Country/Region name",
-            "Country Name and Code",
-            "Name of entity",
-            "Address of entity",
-            "ZIP Code",
-            "Nature of entity",
-            "Date of acquiring the interest",
-            "Initial value of the investment",
-            "Peak value of investment during the Period",
-            "Closing balance",
-            "Total gross amount paid/credited with respect to the holding during the period",
-            "Total gross proceeds from sale or redemption of investment during the period",
-        ],
-        map(
-            lambda entry: (
-                entry.org.country_name,
-                entry.org.country_code,
-                entry.org.name,
-                entry.org.address,
-                entry.org.zip_code,
-                entry.org.nature,
-                # ref https://www.reddit.com/r/IndiaTax/comments/1mhbi0w/a3_template_commonerrorscsv_row_skip_any_idea/
-                date_utils.format_time(
-                    entry.purchase.purchase.date["time_in_millis"], "%Y-%m-%d"
-                ),
-                round(entry.purchase_price),
-                round(entry.peak_price),
-                round(entry.closing_price),
-                0, # todo sale is not supported as of now,
-                0,
-            ),
-            fa_entries,
-        ),
-        True,
-        print_path_to_console=True,
-    )
     return fa_entries
 
 
+def __rows(fa_entries: t.List[FAA3]):
+    return map(
+        lambda entry: (
+            entry.org.country_name,
+            entry.org.country_code,
+            entry.org.name,
+            entry.org.address,
+            entry.org.zip_code,
+            entry.org.nature,
+            # ref https://www.reddit.com/r/IndiaTax/comments/1mhbi0w/a3_template_commonerrorscsv_row_skip_any_idea/
+            date_utils.format_time(
+                entry.purchase.purchase.date["time_in_millis"], "%Y-%m-%d"
+            ),
+            round(entry.purchase_price),
+            round(entry.peak_price),
+            round(entry.closing_price),
+            0,  # todo sale is not supported as of now,
+            0,
+        ),
+        fa_entries,
+    )
+
+
+def write_fa_entries(
+    fa_entries: t.List[FAA3],
+    output_folder_abs_path: str,
+):
+    """
+    The schedule FA under section A3 upload, holding the entries of every source
+    and every ticker of the run
+    """
+    file_utils.write_csv_to_file(
+        output_folder_abs_path,
+        FA_ENTRIES_OUTPUT_FILE_NAME,
+        FA_ENTRIES_COLUMNS,
+        __rows(fa_entries),
+        True,
+        print_path_to_console=True,
+    )
+
+
 def parse(
+    operation_mode: str,
     calendar_mode: str,
     purchases: t.List[TransactionWithTicker],
     assessment_year: int,
     output_folder_abs_path: str,
-):
+) -> t.List[FAA3]:
+    """
+    Entries of one source, its own raw workings written aside for a cross check
+    """
     ticker_attr = operator.attrgetter("ticker")
     grouped_list = groupby(sorted(purchases, key=ticker_attr), ticker_attr)
 
+    fa_entries: t.List[FAA3] = []
     for ticker, each_org_purchases in grouped_list:
-        parse_org_purchases(
-            ticker,
-            calendar_mode,
-            list(each_org_purchases),
-            assessment_year,
-            output_folder_abs_path,
+        fa_entries.extend(
+            parse_org_purchases(
+                ticker,
+                calendar_mode,
+                list(each_org_purchases),
+                assessment_year,
+                output_folder_abs_path,
+            )
         )
+
+    raw_folder_abs_path = os.path.join(
+        output_folder_abs_path, file_utils.RAW_OUTPUT_FOLDER_NAME, RAW_FOLDER_NAME
+    )
+    file_utils.write_to_file(
+        raw_folder_abs_path,
+        RAW_FA_ENTRIES_FILE_NAME_FORMAT.format(operation_mode=operation_mode),
+        fa_entries,
+        True,
+    )
+    file_utils.write_csv_to_file(
+        raw_folder_abs_path,
+        RAW_FA_ENTRIES_CSV_FILE_NAME_FORMAT.format(operation_mode=operation_mode),
+        FA_ENTRIES_COLUMNS,
+        __rows(fa_entries),
+        True,
+        print_path_to_console=True,
+    )
+    return fa_entries

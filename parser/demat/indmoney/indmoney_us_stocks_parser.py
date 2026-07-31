@@ -4,7 +4,13 @@ from utils.runtime_utils import warn_missing_module
 from utils import logger, date_utils
 from utils.rates import rbi_rates_utils
 from models.transaction import Transaction, Price
-from models.asset_sale import AssetSale, SBI_PREV_MON_LAST_DAY
+from models.asset_sale import (
+    AssetSale,
+    SBI_PREV_MON_LAST_DAY,
+    SECTION_OTHER_THAN_111A,
+    SECTION_OTHER_THAN_112A,
+    SectionType,
+)
 
 warn_missing_module("pandas")
 warn_missing_module("openpyxl")
@@ -149,7 +155,19 @@ def __per_unit(total: float, quantity: float) -> float:
     return total / quantity
 
 
-def __parse_row(data: pd.Series, column_map: t.Dict[str, int]) -> AssetSale:
+def __section_type(sheet_name: str) -> SectionType:
+    """
+    US listed shares are not eligible for section 111A/112A, so a sheet only
+    decides whether the sale is reported as short term or as long term
+    """
+    if STCG_SHEET_NAME_PATTERN.search(sheet_name):
+        return SECTION_OTHER_THAN_111A
+    return SECTION_OTHER_THAN_112A
+
+
+def __parse_row(
+    data: pd.Series, column_map: t.Dict[str, int], section_type: SectionType
+) -> AssetSale:
     def cell(key: t.Tuple[str, ...]):
         column_index = __column_index(column_map, key)
         if column_index is None:
@@ -177,6 +195,7 @@ def __parse_row(data: pd.Series, column_map: t.Dict[str, int]) -> AssetSale:
     return AssetSale(
         asset_description=str(cell(NAME_KEY)).strip(),
         broker=str(cell(BROKER_KEY)).strip() if cell(BROKER_KEY) is not None else "",
+        section_type=section_type,
         sale_transaction=Transaction(
             date=sale_date,
             fmv=Price(__per_unit(sale_value, quantity), CURRENCY_CODE),
@@ -188,12 +207,8 @@ def __parse_row(data: pd.Series, column_map: t.Dict[str, int]) -> AssetSale:
             quantity=quantity,
         ),
         # both expense_original and expense_exempted is same in case of INDMoney
-        expense_original=Price(
-            round(expense_exempted, 2), REPORTING_CURRENCY_CODE
-        ),
-        expense_exempted=Price(
-            round(expense_exempted, 2), REPORTING_CURRENCY_CODE
-        ),
+        expense_original=Price(round(expense_exempted, 2), REPORTING_CURRENCY_CODE),
+        expense_exempted=Price(round(expense_exempted, 2), REPORTING_CURRENCY_CODE),
         gains=Price(
             round(sale_price - purchase_price - expense_exempted, 2),
             REPORTING_CURRENCY_CODE,
@@ -231,6 +246,7 @@ def parse_sheet(
 
     name_column = __column_index(column_map, NAME_KEY)
     assert name_column is not None
+    section_type = __section_type(sheet_name)
     sales: t.List[AssetSale] = []
     for row_index in range(header_row_index + 2, len(sheet_pd)):
         data = sheet_pd.iloc[row_index]
@@ -239,7 +255,7 @@ def parse_sheet(
             break
         if not __is_data_row(name_value):
             continue
-        parsed_sale = __parse_row(data, column_map)
+        parsed_sale = __parse_row(data, column_map, section_type)
         if not date_utils.is_in_bounds(
             parsed_sale.sale_transaction.date["time_in_millis"], time_bounds
         ):
