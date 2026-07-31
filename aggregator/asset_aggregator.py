@@ -1,17 +1,16 @@
-from itertools import groupby
-from operator import attrgetter
-
 from utils.excel_utils import (
     MONEY_COLUMN_TYPE,
     PLAIN_COLUMN_TYPE,
     REPORTING_COLUMN_TYPE,
     Column,
+    currency_column_name,
+    header_names,
 )
 from utils.runtime_utils import warn_missing_module
 from utils import logger, file_utils
 from utils.rates import rbi_rates_utils
 from models.transaction import Transaction
-from models.asset_sale import AssetSale
+from models.asset_sale import AssetSale, SectionType
 
 warn_missing_module("pandas")
 warn_missing_module("openpyxl")
@@ -19,8 +18,9 @@ import typing as t
 
 DEBUG = False
 
-OUTPUT_FILE_NAME = "foreign_listed_assets.xlsx"
-OUTPUT_SHEET_NAME = "Foreign Listed Assets"
+# one report per schedule CG section, both the file and the sheet carrying the
+# section the sales inside it are reported under
+OUTPUT_FILE_NAME_FORMAT = "asset_sales.xlsx"
 
 # only used to label the reporting currency columns of an empty report
 DEFAULT_REPORTING_CURRENCY_CODE = "INR"
@@ -64,37 +64,16 @@ COLUMNS = [
 ]
 
 
-def __currency_column_name(name: str, currency_code: str) -> str:
-    return f"{name}({currency_code})"
-
-
-def __header_names(currency_codes: t.List[str], reporting_code: str) -> t.List[str]:
-    """
-    Money columns are expanded in place, each adjacent run of them repeating once
-    per currency so that a currency's figures stay together
-    """
-    names: t.List[str] = []
-    for column_type, columns in groupby(COLUMNS, key=attrgetter("type")):
-        run = [column.name for column in columns]
-        if column_type == MONEY_COLUMN_TYPE:
-            for currency_code in currency_codes:
-                names.extend(
-                    __currency_column_name(name, currency_code) for name in run
-                )
-        elif column_type == REPORTING_COLUMN_TYPE:
-            names.extend(__currency_column_name(name, reporting_code) for name in run)
-        else:
-            names.extend(run)
-    return names
-
-
 def __exchange_rate(sale: AssetSale, transaction: Transaction) -> float:
     """
     Rule 115 applies the transfer month's rate to the whole computation, so a leg
-    without its own rate falls back to the sale leg's one
+    without its own rate falls back to the sale leg's one. A leg already traded in
+    the reporting currency needs no conversion
     """
     if sale.sale_exchange_rate is not None:
         return sale.sale_exchange_rate
+    if transaction.fmv.currency_code == sale.gains.currency_code:
+        return 1.0
     return rbi_rates_utils.get_rate_for_prev_mon_for_time_in_ms(
         transaction.fmv.currency_code, transaction.date["time_in_millis"]
     )
@@ -118,6 +97,18 @@ def __currency_codes(sales: t.List[AssetSale], reporting_code: str) -> t.List[st
     codes = {sale.sale_transaction.fmv.currency_code for sale in sales}
     codes.discard(reporting_code)
     return sorted(codes) + [reporting_code]
+
+
+def __section_type(sales: t.List[AssetSale]) -> SectionType:
+    """
+    A report covers exactly one schedule CG section, so the caller splits the
+    sales by section before handing them over
+    """
+    section_types = {sale.section_type for sale in sales}
+    assert (
+        len(section_types) == 1
+    ), f"Sales must belong to exactly one section, found {sorted(section_types)}"
+    return section_types.pop()
 
 
 def __serial_order_key(sale: AssetSale) -> t.Tuple[str, int]:
@@ -158,18 +149,18 @@ def __build_row(
         ),
         SALE_CALC_METHOD_COLUMN: sale.sale_calc_method,
         PURCHASE_CALC_METHOD_COLUMN: sale.purchase_calc_method,
-        __currency_column_name(
+        currency_column_name(
             EXPENSE_COLUMN, reporting_code
         ): sale.expense_exempted.price,
-        __currency_column_name(GAINS_COLUMN, reporting_code): sale.gains.price,
+        currency_column_name(GAINS_COLUMN, reporting_code): sale.gains.price,
     }
 
     values.update(
         {
-            __currency_column_name(
-                SALE_PRICE_COLUMN, original_code
-            ): __original_value(sale.sale_transaction),
-            __currency_column_name(
+            currency_column_name(SALE_PRICE_COLUMN, original_code): __original_value(
+                sale.sale_transaction
+            ),
+            currency_column_name(
                 PURCHASE_PRICE_COLUMN, original_code
             ): __original_value(sale.purchase_transaction),
         }
@@ -177,12 +168,12 @@ def __build_row(
 
     values.update(
         {
-            __currency_column_name(SALE_PRICE_COLUMN, reporting_code): round(
+            currency_column_name(SALE_PRICE_COLUMN, reporting_code): round(
                 __original_value(sale.sale_transaction)
                 * __exchange_rate(sale, sale.sale_transaction),
                 2,
             ),
-            __currency_column_name(PURCHASE_PRICE_COLUMN, reporting_code): round(
+            currency_column_name(PURCHASE_PRICE_COLUMN, reporting_code): round(
                 __original_value(sale.purchase_transaction)
                 * __exchange_rate(sale, sale.purchase_transaction),
                 2,
@@ -200,27 +191,29 @@ def parse(
     logger.DEBUG = DEBUG
     ordered_sales = sorted(sales, key=__serial_order_key)
 
+    section_type = __section_type(ordered_sales)
     reporting_currency_code = __reporting_currency_code(ordered_sales)
-    columns = __header_names(
+    columns = header_names(
+        COLUMNS,
         __currency_codes(ordered_sales, reporting_currency_code),
         reporting_currency_code,
     )
 
     file_utils.write_excel_to_file(
         output_folder_abs_path,
-        OUTPUT_FILE_NAME,
+        OUTPUT_FILE_NAME_FORMAT.format(section_type=section_type),
         columns,
         (
             __build_row(serial_number, sale, columns)
             for serial_number, sale in enumerate(ordered_sales, start=1)
         ),
         True,
-        sheet_name=OUTPUT_SHEET_NAME,
+        sheet_name=section_type,
         print_path_to_console=True,
     )
 
     print(
-        f"Total foreign listed asset sale entries = {len(ordered_sales)}, "
+        f"Total {section_type} asset sale entries = {len(ordered_sales)}, "
         + f"total gains({reporting_currency_code}) = "
         + f"{round(sum(map(lambda sale: sale.gains.price, ordered_sales)), 2)}"
     )

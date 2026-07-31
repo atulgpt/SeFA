@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from itertools import groupby
+from operator import attrgetter
 import typing as t
 
 PLAIN_COLUMN_TYPE = "plain"
@@ -20,21 +22,27 @@ class Column:
     name: str
 
 
-def __header_names(currency_codes: t.List[str], reporting_code: str) -> t.List[str]:
+def currency_column_name(name: str, currency_code: str) -> str:
+    return f"{name}({currency_code})"
+
+
+def header_names(
+    columns: t.List[Column], currency_codes: t.List[str], reporting_code: str
+) -> t.List[str]:
     """
     Money columns are expanded in place, each adjacent run of them repeating once
     per currency so that a currency's figures stay together
     """
     names: t.List[str] = []
-    for column_type, columns in groupby(COLUMNS, key=attrgetter("type")):
-        run = [column.name for column in columns]
+    for column_type, column_run in groupby(columns, key=attrgetter("type")):
+        run = [column.name for column in column_run]
         if column_type == MONEY_COLUMN_TYPE:
             for currency_code in currency_codes:
                 names.extend(
-                    __currency_column_name(name, currency_code) for name in run
+                    currency_column_name(name, currency_code) for name in run
                 )
         elif column_type == REPORTING_COLUMN_TYPE:
-            names.extend(__currency_column_name(name, reporting_code) for name in run)
+            names.extend(currency_column_name(name, reporting_code) for name in run)
         else:
             names.extend(run)
     return names

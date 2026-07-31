@@ -2,6 +2,7 @@
 import argparse
 import os
 import sys
+import typing as t
 
 from datetime import date, timedelta
 
@@ -9,8 +10,10 @@ from parser.demat.etrade import etrade_benefit_history_parser
 from utils import logger, date_utils
 from parser.demat.etrade import etrade_holdings_bystatus_parser
 from parser.demat.indmoney import indmoney_us_stocks_parser
+from parser.demat.groww import groww_indian_mf_parser, groww_indian_stocks_parser
+from models.asset_sale import AssetSale
 from parser.itr import faa3_parser
-from aggregator.foreign_listed_assets import foreign_listed_asset_aggregator
+from aggregator import asset_aggregator
 from utils.ticker_mapping import ticker_currency_info, ticker_org_info
 from refresh_historic_data import refresh, DEFAULT_START
 import refresh_rbi_rates
@@ -22,10 +25,22 @@ default_output_folder_abs_path = os.path.join(script_path, DEFAULT_OUTPUT_FOLDER
 DEFAULT_SOURCE_MODE = "etrade_benefit_history"
 ETRADE_HOLDINGS_BYSTATUS_SOURCE_MODE = "etrade_holdings_bystatus"
 INDMONEY_US_STOCKS_SOURCE_MODE = "indmoney_us_stocks"
+GROWW_INDIAN_STOCKS_SOURCE_MODE = "groww_indian_stocks"
+GROWW_INDIAN_MF_SOURCE_MODE = "groww_indian_mf"
+
+# Source modes reporting realized sales, which schedule FA under section A3 does
+# not consume. A mode lists every parser that reads a table out of that source's
+# report, their sales being aggregated together
+SALE_SOURCE_PARSERS = {
+    INDMONEY_US_STOCKS_SOURCE_MODE: (indmoney_us_stocks_parser,),
+    GROWW_INDIAN_STOCKS_SOURCE_MODE: (groww_indian_stocks_parser,),
+    GROWW_INDIAN_MF_SOURCE_MODE: (groww_indian_mf_parser,),
+}
+
 SOURCE_MODES = [
     DEFAULT_SOURCE_MODE,
     ETRADE_HOLDINGS_BYSTATUS_SOURCE_MODE,
-    INDMONEY_US_STOCKS_SOURCE_MODE,
+    *SALE_SOURCE_PARSERS,
 ]
 DEFAULT_CALENDER_MODE = "calendar"
 FINANCIAL_CALENDER_MODE = "financial"
@@ -55,8 +70,10 @@ def main():
         dest="input_excel_file",
         help="Specify the absolute path for the input Excel file of the chosen source"
         f" mode: benefit history(BenefitHistory.xlsx) for {DEFAULT_SOURCE_MODE},"
-        f" holdings by status for {ETRADE_HOLDINGS_BYSTATUS_SOURCE_MODE} and the"
-        f" consolidated tax report for {INDMONEY_US_STOCKS_SOURCE_MODE}",
+        f" holdings by status for {ETRADE_HOLDINGS_BYSTATUS_SOURCE_MODE}, the"
+        f" consolidated tax report for {INDMONEY_US_STOCKS_SOURCE_MODE} and the"
+        " stocks/mutual funds capital gains statement for"
+        f" {GROWW_INDIAN_STOCKS_SOURCE_MODE}/{GROWW_INDIAN_MF_SOURCE_MODE}",
         required=True,
     )
     parser.add_argument(
@@ -67,8 +84,8 @@ def main():
         dest="source_mode",
         choices=SOURCE_MODES,
         help=f"Specify the source mode, default = {DEFAULT_SOURCE_MODE}."
-        f" {INDMONEY_US_STOCKS_SOURCE_MODE} reports realized US stock sales and does"
-        " not feed the schedule FA generation",
+        f" {', '.join(SALE_SOURCE_PARSERS)} report realized sales and do not feed"
+        " the schedule FA generation",
     )
     parser.add_argument(
         "-cal",
@@ -111,23 +128,34 @@ def main():
     logger.DEBUG = args.debug
     etrade_benefit_history_parser.DEBUG = args.debug
     etrade_holdings_bystatus_parser.DEBUG = args.debug
-    indmoney_us_stocks_parser.DEBUG = args.debug
-    foreign_listed_asset_aggregator.DEBUG = args.debug
+    for sale_source_parsers in SALE_SOURCE_PARSERS.values():
+        for sale_source_parser in sale_source_parsers:
+            sale_source_parser.DEBUG = args.debug
+    asset_aggregator.DEBUG = args.debug
 
     # Refresh before parsing: RSU rows resolve their FMV from the share price CSV
     # during parsing, so the historic data must be up to date beforehand.
     if not args.skip_refresh:
         refresh_historic_data()
 
-    if args.source_mode == INDMONEY_US_STOCKS_SOURCE_MODE:
-        # realised sales, which schedule FA under section A3 does not consume
-        sales = indmoney_us_stocks_parser.parse(
-            args.input_excel_file,
-            time_bounds=date_utils.calendar_range(
-                args.calendar_mode, args.assessment_year
-            ),
+    if args.source_mode in SALE_SOURCE_PARSERS:
+        time_bounds = date_utils.calendar_range(
+            args.calendar_mode, args.assessment_year
         )
-        foreign_listed_asset_aggregator.parse(sales, args.output_folder)
+        sales: t.List[AssetSale] = []
+        for sale_source_parser in SALE_SOURCE_PARSERS[args.source_mode]:
+            sales.extend(
+                sale_source_parser.parse(
+                    args.input_excel_file, time_bounds=time_bounds
+                )
+            )
+        # a report covers a single schedule CG section, so the sales are split by
+        # section and each section gets its own file
+        for section_type in dict.fromkeys(sale.section_type for sale in sales):
+            asset_aggregator.parse(
+                [sale for sale in sales if sale.section_type == section_type],
+                args.output_folder,
+            )
         return
 
     if args.source_mode == ETRADE_HOLDINGS_BYSTATUS_SOURCE_MODE:
