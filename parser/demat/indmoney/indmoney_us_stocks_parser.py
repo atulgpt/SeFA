@@ -2,13 +2,12 @@ import re
 
 from utils.runtime_utils import warn_missing_module
 from utils import logger, date_utils
+from utils.excel_utils import EMPTY_CELL_MARKER, to_float
 from utils.rates import rbi_rates_utils
 from models.transaction import Transaction, Price
 from models.asset_sale import (
     AssetSale,
     SBI_PREV_MON_LAST_DAY,
-    SECTION_OTHER_THAN_111A,
-    SECTION_OTHER_THAN_112A,
     SectionType,
 )
 
@@ -66,7 +65,6 @@ REQUIRED_KEYS = (
 GAINS_MARKER = "Gains"
 LOSSES_MARKER = "Losses"
 TOTAL_MARKER = "Total"
-EMPTY_ROW_MARKER = "-"
 
 
 def __parse_date(value) -> date_utils.DateObj:
@@ -77,17 +75,6 @@ def __parse_date(value) -> date_utils.DateObj:
     if isinstance(value, str):
         return date_utils.parse_yyyy_mm_dd(value.strip())
     return date_utils.parse_yyyy_mm_dd(pd.Timestamp(value).strftime("%Y-%m-%d"))
-
-
-def __to_float(value) -> float:
-    if value is None or (isinstance(value, float) and pd.isna(value)):
-        return 0.0
-    if isinstance(value, str):
-        stripped = value.strip().replace(",", "")
-        if stripped in ("", EMPTY_ROW_MARKER):
-            return 0.0
-        return float(stripped)
-    return float(value)
 
 
 def __find_header_row(sheet_pd: pd.DataFrame) -> t.Optional[int]:
@@ -133,7 +120,7 @@ def __is_data_row(name_value) -> bool:
     if not isinstance(name_value, str):
         return False
     name = name_value.strip()
-    return name not in ("", GAINS_MARKER, LOSSES_MARKER, EMPTY_ROW_MARKER)
+    return name not in ("", GAINS_MARKER, LOSSES_MARKER, EMPTY_CELL_MARKER)
 
 
 def __column_index(
@@ -161,8 +148,8 @@ def __section_type(sheet_name: str) -> SectionType:
     decides whether the sale is reported as short term or as long term
     """
     if STCG_SHEET_NAME_PATTERN.search(sheet_name):
-        return SECTION_OTHER_THAN_111A
-    return SECTION_OTHER_THAN_112A
+        return SectionType.SECTION_SLAB_SHORT
+    return SectionType.SECTION_SLAB_LONG
 
 
 def __parse_row(
@@ -176,7 +163,7 @@ def __parse_row(
 
     sale_date = __parse_date(cell(SALE_DATE_KEY))
     purchase_date = __parse_date(cell(PURCHASE_DATE_KEY))
-    quantity = __to_float(cell(QUANTITY_KEY))
+    quantity = to_float(cell(QUANTITY_KEY))
 
     # Rule 115 converts the capital gain as a whole, so the rate of the transfer
     # month is applied to the purchase leg as well and no purchase rate is looked up
@@ -184,11 +171,11 @@ def __parse_row(
         CURRENCY_CODE, sale_date["time_in_millis"]
     )
 
-    sale_value = __to_float(cell(SALE_VALUE_KEY))
-    purchase_value = __to_float(cell(PURCHASE_VALUE_KEY))
+    sale_value = to_float(cell(SALE_VALUE_KEY))
+    purchase_value = to_float(cell(PURCHASE_VALUE_KEY))
     sale_price = sale_value * sale_rate
     purchase_price = purchase_value * sale_rate
-    expense_exempted = __to_float(cell(SALE_EXPENSE_KEY)) + __to_float(
+    expense_exempted = to_float(cell(SALE_EXPENSE_KEY)) + to_float(
         cell(PURCHASE_EXPENSE_KEY)
     )
 
