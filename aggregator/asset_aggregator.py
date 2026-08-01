@@ -27,7 +27,10 @@ CAPITAL_GAIN_SUMMARY_OUTPUT_FILE_NAME = "capital_gain_summary.xlsx"
 SUMMARY_OUTPUT_SHEET_NAME = "Capital Gain Summary"
 SECTION_COLUMN = "Section"
 
-# The quarter wise accrual of the gain that schedule CG asks for
+# The quarter wise accrual of the gain that schedule CG asks for in table F,
+# `Information about accrual/receipt of capital gain`. These are not the financial year
+# quarters: the first four run to the 15th of their closing month and the last covers
+# only the tail of March
 TOTAL_COLUMN = "Total"
 FINANCIAL_YEAR_FIRST_MONTH = 4
 
@@ -316,9 +319,26 @@ def __quarter_index(sale: AssetSale) -> int:
     return len(QUARTERS) - 1
 
 
+def __whole_rupee_quarters(quarter_gains: t.List[float]) -> t.List[int]:
+    """
+    Quarter gains as whole rupees, each quarter taking the whole rupees of its own
+    gain plus the fraction every quarter before it left over. A fraction that
+    reaches one rupee therefore lands in the quarter that completed it instead of
+    being rounded away, so the parts stay within a rupee of the running total
+    """
+    wholes: t.List[int] = []
+    carried_fraction = 0.0
+    for gain in quarter_gains:
+        value = gain + carried_fraction
+        whole = math.floor(value)
+        carried_fraction = value - whole
+        wholes.append(whole)
+    return wholes
+
+
 def __non_negative_quarter_gains(rounded_gains: t.List[int]) -> t.List[int]:
     """
-    Schedule CG does not take a negative quarter, so a quarter running at a loss is
+    Schedule CG table F does not take a negative quarter, so a quarter running at a loss is
     set off against the quarters that follow it and, having none left to follow it,
     against the ones before it. The section total is what is preserved
     """
@@ -335,14 +355,12 @@ def __non_negative_quarter_gains(rounded_gains: t.List[int]) -> t.List[int]:
 
 
 def __build_quarter_sheet(
-    section_type: SectionType, sales: t.List[AssetSale]
+    section_type: SectionType, sales: t.List[AssetSale], totals: t.Dict[str, int]
 ) -> t.Optional[t.Tuple[str, t.List[str], t.List[t.Tuple[t.Any, ...]]]]:
     """
     Quarter wise accrual of the section's gain in whole rupees, one quarter per
-    column. Rounding every quarter on its own leaves the parts a rupee or two off the
-    section total, so the difference is carried by the last quarter that holds a
-    sale. None when the section as a whole runs at a loss, which schedule CG does not
-    break up quarter wise
+    column, adding back to the gain the summary itself states. None when the section
+    as a whole runs at a loss, which schedule CG does not break up quarter wise
     """
     quarter_gains = [0.0] * len(QUARTERS)
     quarter_holds_sale = [False] * len(QUARTERS)
@@ -351,7 +369,11 @@ def __build_quarter_sheet(
         quarter_gains[quarter_index] += sale.gains.price
         quarter_holds_sale[quarter_index] = True
 
-    section_total = __whole_rupees(sum(sale.gains.price for sale in sales))
+    section_total = (
+        totals[FULL_VALUE_OF_CONSIDERATION_LABEL]
+        - totals[COST_OF_ACQUISITION_LABEL]
+        - totals[TRANSFER_EXPENDITURE_LABEL]
+    )
     if section_total < 0:
         logger.log(
             f"Section {section_type} runs at an overall loss of {section_total},"
@@ -359,7 +381,7 @@ def __build_quarter_sheet(
         )
         return None
 
-    rounded_gains = [__whole_rupees(gain) for gain in quarter_gains]
+    rounded_gains = __whole_rupee_quarters(quarter_gains)
     last_quarter_index = max(
         index for index, holds_sale in enumerate(quarter_holds_sale) if holds_sale
     )
@@ -407,7 +429,11 @@ def __write_summary(
         + [
             quarter_sheet
             for quarter_sheet in (
-                __build_quarter_sheet(section_type, section_sales[section_type])
+                __build_quarter_sheet(
+                    section_type,
+                    section_sales[section_type],
+                    section_totals[section_type],
+                )
                 for section_type in section_types
             )
             if quarter_sheet is not None

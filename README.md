@@ -38,12 +38,9 @@ download that report and what the parser does with it.
 | --- | --- | --- | --- |
 | `etrade_benefit_history` | `BenefitHistory.xlsx` from ETRADE | [etrade](parser/demat/etrade/README.md#etrade_benefit_history_parserpy) | schedule FA |
 | `etrade_holdings_bystatus` | Holdings by status from ETRADE | [etrade](parser/demat/etrade/README.md#etrade_holdings_bystatus_parserpy) | schedule FA |
-| `indmoney_us_stocks` | INDmoney consolidated tax report | [indmoney](parser/demat/indmoney/README.md#indmoney_us_stocks_parserpy) | realized sales **and** schedule FA |
-| `groww_indian_stocks` | Groww stocks capital gains statement | [groww](parser/demat/groww/README.md#groww_indian_stocks_parserpy) | realized sales |
-| `groww_indian_mf` | Groww mutual funds capital gains statement | [groww](parser/demat/groww/README.md#groww_indian_mf_parserpy) | realized sales |
-
-`indmoney_us_stocks` is the one mode feeding both: its `STCG`/`LTCG` sheets hold realized
-sales while its `Schedule FA` sheet holds the section A3 rows.
+| `indmoney_us_stocks` | INDmoney consolidated tax report | [indmoney](parser/demat/indmoney/README.md#indmoney_us_stocks_parserpy) | realized sales, quarter distribution (table F) **and** schedule FA |
+| `groww_indian_stocks` | Groww stocks capital gains statement | [groww](parser/demat/groww/README.md#groww_indian_stocks_parserpy) | realized sales, quarter distribution (table F) |
+| `groww_indian_mf` | Groww mutual funds capital gains statement | [groww](parser/demat/groww/README.md#groww_indian_mf_parserpy) | realized sales, quarter distribution (table F) |
 
 Every parser hands its rows back keyed by the section they are filed under, so a run is just
 the merge of everything its inputs produced. The capital gain sections are
@@ -97,8 +94,7 @@ The realized sale modes write into the same folder:
   row per schedule CG section: full value of consideration, cost of acquisition without
   indexation and the expenditure wholly and exclusively in connection with transfer, all in
   whole rupees. Every section then gets its own sheet breaking its gain up over the five
-  schedule CG quarters, the last quarter holding a sale carrying the rounding difference so
-  that the quarters add back to the section total.
+  quarters of schedule CG table F, `Information about accrual/receipt of capital gain`.
 - `schedule_112a.csv` — the schedule 112A upload for the filing utility, one row per
   `112A_long` sale acquired on or before 31-Jan-2018, whose cost is grandfathered to the
   31-Jan-2018 fair market value under section 55(2)(ac). A later holding carries no
