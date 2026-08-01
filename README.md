@@ -2,13 +2,6 @@
 Python module to generate Indian ITR schedule FA under section A3 automatically
 
 # How to run
-## Download `BenefitHistory.xlsx` from `ETRADE`
-1. Click on `At Work` top menu bar
-2. Click on `Holdings` top submenu bar
-3. Click on `Benefit History` link either on `Employee Stock Purchase Plan (ESPP)` or `Restricted Stock (RS)`
-4. Click on `Download` button which will open the popup.
-5. Click on `Download Expanded` which will prompt you to download the `BenefitHistory.xlsx` file
-
 ## Setup
 The script requires Python 3.8 or higher. Please ensure that it is installed on your system. In newer versions of Python, you may encounter an [`externally-managed-environment`](https://peps.python.org/pep-0668/), so create and activate a [Python virtual environment](https://docs.python.org/3/library/venv.html#creating-virtual-environments) before installing the dependencies.
 
@@ -22,7 +15,7 @@ pip3 install .
 This installs all required dependencies (`pandas`, `openpyxl`, `yfinance`, `requests`).
 
 ## Run the script
-With the virtual environment activated, run the script with the downloaded `BenefitHistory.xlsx`:
+With the virtual environment activated, run the script with a downloaded report:
 ```sh
 ./run.py -i "etrade_benefit_history:<absolute_folder_of_benefit_history_file>/BenefitHistory.xlsx" -ay 2023
 ```
@@ -38,18 +31,24 @@ across more than one file:
 ```
 
 ### Operation modes
-| Operation mode | Expected report | Feeds |
-| --- | --- | --- |
-| `etrade_benefit_history` | `BenefitHistory.xlsx` from ETRADE | schedule FA |
-| `etrade_holdings_bystatus` | Holdings by status from ETRADE | schedule FA |
-| `indmoney_us_stocks` | INDmoney consolidated tax report | realized sales |
-| `groww_indian_stocks` | Groww stocks capital gains statement | realized sales |
-| `groww_indian_mf` | Groww mutual funds capital gains statement | realized sales |
+Each mode is one parser reading one report. The parser's own folder documents how to
+download that report and what the parser does with it.
 
-The realized sale modes report capital gains and do not feed the schedule FA generation. Their
-sales are pooled across every input and then split by the schedule CG section they are reported
-under: `111A_short`/`112A_long` for STT paid listed Indian equity shares and equity oriented
-mutual funds, `slab_short`/`slab_long` for everything else.
+| Operation mode | Expected report | How to download | Feeds |
+| --- | --- | --- | --- |
+| `etrade_benefit_history` | `BenefitHistory.xlsx` from ETRADE | [etrade](parser/demat/etrade/README.md#etrade_benefit_history_parserpy) | schedule FA |
+| `etrade_holdings_bystatus` | Holdings by status from ETRADE | [etrade](parser/demat/etrade/README.md#etrade_holdings_bystatus_parserpy) | schedule FA |
+| `indmoney_us_stocks` | INDmoney consolidated tax report | [indmoney](parser/demat/indmoney/README.md#indmoney_us_stocks_parserpy) | realized sales **and** schedule FA |
+| `groww_indian_stocks` | Groww stocks capital gains statement | [groww](parser/demat/groww/README.md#groww_indian_stocks_parserpy) | realized sales |
+| `groww_indian_mf` | Groww mutual funds capital gains statement | [groww](parser/demat/groww/README.md#groww_indian_mf_parserpy) | realized sales |
+
+`indmoney_us_stocks` is the one mode feeding both: its `STCG`/`LTCG` sheets hold realized
+sales while its `Schedule FA` sheet holds the section A3 rows.
+
+Every parser hands its rows back keyed by the section they are filed under, so a run is just
+the merge of everything its inputs produced. The capital gain sections are
+`111A_short`/`112A_long` for STT paid listed Indian equity shares and equity oriented mutual
+funds, and `slab_short`/`slab_long` for everything else.
 
 Detailed options are listed below
 ```txt
@@ -79,8 +78,7 @@ do not need to run the refresh scripts yourself:
   for every ticker in your `BenefitHistory.xlsx`.
 - **RBI/FBIL reference rates** (`historic_data/rates/rbi/rates.xlsx`) from the FBIL benchmark
   via the public [Frankfurter API](https://frankfurter.dev), for every currency used by those
-  tickers. FBIL data is available from 2018-07-10 onwards; only the refreshed currency pairs
-  are replaced, other pairs already in the file are left untouched.
+  tickers. FBIL data is available from 2018-07-10 onwards.
 
 If a dependency is missing or there is no network, the run logs a warning and falls back to
 the bundled data. Pass `--skip-refresh` to force the bundled data (useful when offline). You
@@ -111,10 +109,10 @@ The realized sale modes write into the same folder:
   present with the same totals repeated under each table.
 
 # Limitations
-- Only parsing data from `BenefitHistory.xlsx` is supported.
+- Only the reports listed under [Operation modes](#operation-modes) are supported.
 -  If you have sold any shares, the script will not adjust those. You have to subtract the `BenefitHistory.xlsx` manually
 -  This script is only tested under Mac, with a single `adbe` ticker with `calendar` `--calendar-mode` mode
--  Currently script works based on `historic_data`. Share FMV values is  present in [data.csv][data csv file]([ref][data csv ref])(check the first and last data in the file) and [rates.xlsx][SBI rates]([ref][SBI rates ref]) for RBI rate conversion
+-  Currently script works based on `historic_data`. Share FMV values are present in [`data.csv`][data csv file] (check the first and last data in the file, sourced from [Yahoo Finance][data csv ref]) and the RBI rate conversion uses [`rates.xlsx`][SBI rates] (sourced from [FBIL][SBI rates ref]).
 
 # Author
 [Atul Gupta](https://github.com/atulgpt)
