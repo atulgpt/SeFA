@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-import enum
 import typing as t
 
+from models.section_type import SectionType
 from models.transaction import Price, Transaction
 
 # SBI/FBIL reference rate of the last day of the month preceding the transaction
@@ -10,19 +10,6 @@ CalcMethod = t.Literal["sbi_prev_mon_last_day", "not_applicable"]
 SBI_PREV_MON_LAST_DAY: CalcMethod = "sbi_prev_mon_last_day"
 # the asset is traded in the reporting currency, so no conversion takes place
 NOT_APPLICABLE: CalcMethod = "not_applicable"
-
-class SectionType(enum.StrEnum):
-    """
-    Schedule CG section the sale leg is reported under. STT paid listed Indian
-    equity shares and equity oriented mutual funds fall under section 111A when
-    short term and section 112A when long term, everything else being taxed at the
-    slab rate.
-    """
-
-    SECTION_111A = "111A_short"
-    SECTION_112A = "112A_long"
-    SECTION_SLAB_SHORT = "slab_short"
-    SECTION_SLAB_LONG = "slab_long"
 
 
 @dataclass

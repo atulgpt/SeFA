@@ -8,6 +8,8 @@ from utils.ticker_mapping import ticker_org_info, ticker_currency_info
 from utils.rates import rbi_rates_utils
 from models.transaction import Transaction, TransactionWithTicker, Price
 from models.itr.faa3 import FAA3
+from models.section_type import SectionType
+from models.section_data import SectionDataMap
 
 FA_ENTRIES_OUTPUT_FILE_NAME = "fa_entries.csv"
 
@@ -95,17 +97,7 @@ def parse_org_purchases(
         fa_entries.append(
             FAA3(
                 org,
-                purchase=TransactionWithTicker(
-                    purchase=Transaction(
-                        before_purchase_date,
-                        Price(
-                            fmv_price_on_start,
-                            ticker_currency_info[ticker],
-                        ),
-                        quantity=previous_sum,
-                    ),
-                    ticker=ticker,
-                ),
+                purchase_date=before_purchase_date,
                 purchase_price=previous_sum
                 * fmv_price_on_start
                 * rbi_rates_utils.get_rate_for_prev_mon_for_time_in_ms(
@@ -123,7 +115,7 @@ def parse_org_purchases(
         fa_entries.append(
             FAA3(
                 org,
-                purchase=purchase,
+                purchase_date=purchase.purchase.date,
                 peak_price=purchase.purchase.quantity
                 * share_data_utils.get_peak_price_in_inr(
                     ticker,
@@ -153,13 +145,13 @@ def __rows(fa_entries: t.List[FAA3]):
             entry.org.nature,
             # ref https://www.reddit.com/r/IndiaTax/comments/1mhbi0w/a3_template_commonerrorscsv_row_skip_any_idea/
             date_utils.format_time(
-                entry.purchase.purchase.date["time_in_millis"], "%Y-%m-%d"
+                entry.purchase_date["time_in_millis"], "%Y-%m-%d"
             ),
             round(entry.purchase_price),
             round(entry.peak_price),
             round(entry.closing_price),
-            0,  # todo sale is not supported as of now,
-            0,
+            round(entry.gross_amount_paid),
+            round(entry.gross_sale_proceeds),
         ),
         fa_entries,
     )
@@ -189,7 +181,7 @@ def parse(
     purchases: t.List[TransactionWithTicker],
     assessment_year: int,
     output_folder_abs_path: str,
-) -> t.List[FAA3]:
+) -> SectionDataMap:
     """
     Entries of one source, its own raw workings written aside for a cross check
     """
@@ -225,4 +217,4 @@ def parse(
         True,
         print_path_to_console=True,
     )
-    return fa_entries
+    return {SectionType.SCHEDULE_FA_A3: fa_entries}

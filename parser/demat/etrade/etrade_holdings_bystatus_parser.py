@@ -1,5 +1,6 @@
 import operator
 import os
+from models.section_data import SectionDataMap
 from utils.runtime_utils import warn_missing_module
 from utils.ticker_mapping import ticker_currency_info
 from utils import logger, file_utils, date_utils
@@ -53,7 +54,13 @@ def parse_sellable(xl: pd.ExcelFile) -> t.List[TransactionWithTicker]:
     return purchases
 
 
-def parse(input_file_abs_path: str, output_folder_abs_path: str) -> t.List[TransactionWithTicker]:
+def parse(
+    input_file_abs_path: str,
+    output_folder_abs_path: str,
+    operation_mode: str,
+    calendar_mode: str,
+    assessment_year: int,
+) -> SectionDataMap:
     logger.DEBUG = DEBUG
     purchases: t.List[TransactionWithTicker] = []
     with pd.ExcelFile(input_file_abs_path, engine="openpyxl") as xl:
@@ -90,4 +97,10 @@ def parse(input_file_abs_path: str, output_folder_abs_path: str) -> t.List[Trans
             f"{ticker}: Total shares present in the "
             + f"sheet = {sum(map(lambda x:x.purchase.quantity, ticker_shares_map[ticker]))}"
         )
-    return purchases
+    return faa3_parser.parse(
+        operation_mode,
+        calendar_mode,
+        purchases,
+        assessment_year,
+        output_folder_abs_path,
+    )

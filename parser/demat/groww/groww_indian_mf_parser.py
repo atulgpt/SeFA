@@ -5,8 +5,9 @@ from models.transaction import Transaction, Price
 from models.asset_sale import (
     AssetSale,
     NOT_APPLICABLE,
-    SectionType,
 )
+from models.section_type import SectionType
+from models.section_data import SectionDataMap
 
 warn_missing_module("pandas")
 warn_missing_module("openpyxl")
@@ -200,7 +201,7 @@ def parse_sheet(
 def parse(
     input_file_abs_path: str,
     time_bounds: t.Optional[date_utils.DateBounds] = None,
-) -> t.List[AssetSale]:
+) -> SectionDataMap:
     logger.DEBUG = DEBUG
     sales: t.List[AssetSale] = []
     with pd.ExcelFile(input_file_abs_path, engine="openpyxl") as xl:
@@ -219,4 +220,8 @@ def parse(
         + f"total gains({CURRENCY_CODE}) = "
         + f"{round(sum(map(lambda sale: sale.gains.price, sales)), 2)}"
     )
-    return sales
+
+    sections: SectionDataMap = {}
+    for sale in sales:
+        sections.setdefault(sale.section_type, []).append(sale)
+    return sections

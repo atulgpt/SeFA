@@ -12,8 +12,8 @@ from parser.demat.etrade import etrade_holdings_bystatus_parser
 from parser.demat.indmoney import indmoney_us_stocks_parser
 from parser.demat.groww import groww_indian_mf_parser, groww_indian_stocks_parser
 from models.asset_sale import AssetSale
-from models.transaction import TransactionWithTicker
-from models.itr.faa3 import FAA3
+from models.section_type import SectionType
+from models.section_data import SectionDataMap
 from parser.itr import faa3_parser
 from aggregator import asset_aggregator
 from utils.ticker_mapping import ticker_currency_info, ticker_org_info
@@ -163,28 +163,40 @@ def main():
 
     time_bounds = date_utils.calendar_range(args.calendar_mode, args.assessment_year)
 
-    sales: t.List[AssetSale] = []
-    # kept per operation mode so that every source's raw workings stay told apart
-    purchases: t.Dict[str, t.List[TransactionWithTicker]] = {}
+    # every parser hands back its rows keyed by the section they are filed under, so
+    # a run is the merge of everything its inputs produced
+    sections: SectionDataMap = {}
+
+    def collect(parsed: SectionDataMap) -> None:
+        for section_type, rows in parsed.items():
+            sections.setdefault(section_type, []).extend(rows)
+
     for operation_mode, input_excel_file in __parse_inputs(args.inputs):
         if operation_mode in SALE_OPERATION_PARSERS:
             for sale_operation_parser in SALE_OPERATION_PARSERS[operation_mode]:
-                sales.extend(
+                collect(
                     sale_operation_parser.parse(
                         input_excel_file, time_bounds=time_bounds
                     )
                 )
         elif operation_mode == ETRADE_HOLDINGS_BYSTATUS_OPERATION_MODE:
-            purchases.setdefault(operation_mode, []).extend(
+            collect(
                 etrade_holdings_bystatus_parser.parse(
-                    input_excel_file, args.output_folder
+                    input_excel_file,
+                    args.output_folder,
+                    operation_mode,
+                    args.calendar_mode,
+                    args.assessment_year,
                 )
             )
         elif operation_mode == ETRADE_BENEFIT_HISTORY_OPERATION_MODE:
-            purchases.setdefault(operation_mode, []).extend(
+            collect(
                 etrade_benefit_history_parser.parse(
                     input_excel_file,
                     args.output_folder,
+                    operation_mode,
+                    args.calendar_mode,
+                    args.assessment_year,
                     time_bounds=(
                         None,
                         date_utils.calendar_range(
@@ -194,23 +206,7 @@ def main():
                 )
             )
 
-    if sales:
-        asset_aggregator.parse(sales, args.output_folder)
-
-    # every source writes its own raw workings, the filed schedule FA holding them all
-    fa_entries: t.List[FAA3] = []
-    for operation_mode, source_purchases in purchases.items():
-        fa_entries.extend(
-            faa3_parser.parse(
-                operation_mode,
-                args.calendar_mode,
-                source_purchases,
-                args.assessment_year,
-                args.output_folder,
-            )
-        )
-    if fa_entries:
-        faa3_parser.write_fa_entries(fa_entries, args.output_folder)
+    asset_aggregator.parse(sections, args.output_folder)
 
 
 def refresh_historic_data():

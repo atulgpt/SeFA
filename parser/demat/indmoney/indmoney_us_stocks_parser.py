@@ -2,14 +2,17 @@ import re
 
 from utils.runtime_utils import warn_missing_module
 from utils import logger, date_utils
-from utils.excel_utils import EMPTY_CELL_MARKER, to_float
+from utils.excel_utils import EMPTY_CELL_MARKER, cell_text, optional_cell_text, to_float
 from utils.rates import rbi_rates_utils
 from models.transaction import Transaction, Price
 from models.asset_sale import (
     AssetSale,
     SBI_PREV_MON_LAST_DAY,
-    SectionType,
 )
+from models.section_type import SectionType
+from models.section_data import SectionDataMap
+from models.itr.faa3 import FAA3
+from models.org import Organization
 
 warn_missing_module("pandas")
 warn_missing_module("openpyxl")
@@ -49,6 +52,39 @@ PURCHASE_VALUE_KEY = ("Total (in US$) | Purchase Value",)
 SALE_EXPENSE_KEY = ("Expense (in INR) | On Sale of Shares",)
 PURCHASE_EXPENSE_KEY = ("Expense (in INR) | On Purchase of Shares",)
 BROKER_KEY = ("Broker name",)
+
+# Schedule FA section A3 of the same workbook, one row per foreign holding. The
+# figures are already stated in INR, so nothing is derived from a ticker
+FA_SHEET_NAME_PATTERN = re.compile(r"schedule\s*fa", re.IGNORECASE)
+FA_COUNTRY_NAME_HEADER = "Country Name"
+FA_COUNTRY_CODE_HEADER = "Country Code"
+FA_ENTITY_NAME_HEADER = "Name of the entity"
+FA_ADDRESS_HEADER = "Address of the entity"
+FA_ZIP_HEADER = "ZIP Code"
+FA_NATURE_HEADER = "Nature of entity"
+FA_ACQUIRED_DATE_HEADER = "Date of acquiring interest"
+FA_INITIAL_VALUE_HEADER = "Initial value of investment"
+FA_PEAK_VALUE_HEADER = "Peak value of investment"
+FA_CLOSING_VALUE_HEADER = "Closing Balance"
+FA_GROSS_PAID_HEADER = "Total gross amount paid/credited to the holding during the period"
+FA_GROSS_PROCEEDS_HEADER = (
+    "Total gross proceeds from sale or redemption of investment during the period"
+)
+
+FA_REQUIRED_HEADERS = (
+    FA_COUNTRY_NAME_HEADER,
+    FA_COUNTRY_CODE_HEADER,
+    FA_ENTITY_NAME_HEADER,
+    FA_ADDRESS_HEADER,
+    FA_ZIP_HEADER,
+    FA_NATURE_HEADER,
+    FA_ACQUIRED_DATE_HEADER,
+    FA_INITIAL_VALUE_HEADER,
+    FA_PEAK_VALUE_HEADER,
+    FA_CLOSING_VALUE_HEADER,
+    FA_GROSS_PAID_HEADER,
+    FA_GROSS_PROCEEDS_HEADER,
+)
 
 REQUIRED_KEYS = (
     NAME_KEY,
@@ -251,12 +287,78 @@ def parse_sheet(
     return sales
 
 
+def __parse_fa_sheet(xl: pd.ExcelFile, sheet_name: str) -> t.List[FAA3]:
+    """
+    Section A3 of the schedule FA sheet, whose header row is the one carrying the
+    entity name. The rows above it hold section A2, the foreign custodial accounts,
+    which schedule FA under section A3 does not consume
+    """
+    logger.debug_log(f"Currently parsing {sheet_name} sheet")
+    sheet_pd = xl.parse(sheet_name=sheet_name, header=None)
+
+    header_row_index = None
+    for row_index in range(len(sheet_pd)):
+        row = {
+            optional_cell_text(value): index
+            for index, value in enumerate(sheet_pd.iloc[row_index])
+        }
+        if FA_ENTITY_NAME_HEADER in row and FA_ACQUIRED_DATE_HEADER in row:
+            header_row_index = row_index
+            column_map = row
+            break
+    assert header_row_index is not None, (
+        f"{sheet_name} sheet has no section A3 header row carrying"
+        f" {FA_ENTITY_NAME_HEADER} and {FA_ACQUIRED_DATE_HEADER}"
+    )
+
+    missing_headers = [
+        header for header in FA_REQUIRED_HEADERS if header not in column_map
+    ]
+    assert not missing_headers, (
+        f"Section A3 of {sheet_name} sheet is missing the column(s)"
+        f" {missing_headers}. Found columns = {sorted(column_map)}"
+    )
+
+    entries: t.List[FAA3] = []
+    for row_index in range(header_row_index + 1, len(sheet_pd)):
+        data = sheet_pd.iloc[row_index]
+
+        def cell(header: str):
+            return data.iloc[column_map[header]]
+
+        if optional_cell_text(cell(FA_ENTITY_NAME_HEADER)) == "":
+            break
+        entries.append(
+            FAA3(
+                org=Organization(
+                    country_name=cell_text(cell(FA_COUNTRY_NAME_HEADER)),
+                    # the report zero pads the code, the utility does not take it
+                    country_code=str(int(to_float(cell(FA_COUNTRY_CODE_HEADER)))),
+                    name=cell_text(cell(FA_ENTITY_NAME_HEADER)),
+                    address=cell_text(cell(FA_ADDRESS_HEADER)),
+                    nature=cell_text(cell(FA_NATURE_HEADER)),
+                    zip_code=cell_text(cell(FA_ZIP_HEADER)),
+                ),
+                purchase_date=date_utils.parse_yyyy_mm_dd(
+                    cell_text(cell(FA_ACQUIRED_DATE_HEADER))
+                ),
+                purchase_price=to_float(cell(FA_INITIAL_VALUE_HEADER)),
+                peak_price=to_float(cell(FA_PEAK_VALUE_HEADER)),
+                closing_price=to_float(cell(FA_CLOSING_VALUE_HEADER)),
+                gross_amount_paid=to_float(cell(FA_GROSS_PAID_HEADER)),
+                gross_sale_proceeds=to_float(cell(FA_GROSS_PROCEEDS_HEADER)),
+            )
+        )
+    return entries
+
+
 def parse(
     input_file_abs_path: str,
     time_bounds: t.Optional[date_utils.DateBounds] = None,
-) -> t.List[AssetSale]:
+) -> SectionDataMap:
     logger.DEBUG = DEBUG
     sales: t.List[AssetSale] = []
+    fa_entries: t.List[FAA3] = []
     with pd.ExcelFile(input_file_abs_path, engine="openpyxl") as xl:
         sheet_names = xl.sheet_names
         logger.log(f"Total sheets present {sheet_names}")
@@ -270,14 +372,16 @@ def parse(
                 if pattern.search(sheet_name)
             )
         )
-        if not parsable_sheet_names:
-            logger.log(
-                "Excel sheet don't have any sheet matching "
-                + f"{[pattern.pattern for pattern in SUPPORTED_SHEET_NAME_PATTERNS]}"
-            )
-            return []
+        assert parsable_sheet_names, (
+            "Excel sheet don't have any sheet matching "
+            + f"{[pattern.pattern for pattern in SUPPORTED_SHEET_NAME_PATTERNS]}"
+        )
         for sheet_name in parsable_sheet_names:
             sales.extend(parse_sheet(xl, sheet_name, time_bounds))
+
+        for sheet_name in sheet_names:
+            if FA_SHEET_NAME_PATTERN.search(sheet_name):
+                fa_entries.extend(__parse_fa_sheet(xl, sheet_name))
 
     sales.sort(key=lambda sale: sale.sale_transaction.date["time_in_millis"])
 
@@ -285,5 +389,12 @@ def parse(
         f"Total US stock sale entries = {len(sales)}, "
         + f"total gains({REPORTING_CURRENCY_CODE}) = "
         + f"{round(sum(map(lambda sale: sale.gains.price, sales)), 2)}"
+        + f", schedule FA entries = {len(fa_entries)}"
     )
-    return sales
+
+    sections: SectionDataMap = {}
+    for sale in sales:
+        sections.setdefault(sale.section_type, []).append(sale)
+    if fa_entries:
+        sections[SectionType.SCHEDULE_FA_A3] = fa_entries
+    return sections

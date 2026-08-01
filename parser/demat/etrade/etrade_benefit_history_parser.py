@@ -14,6 +14,7 @@ import itertools
 DEBUG = False
 
 from models.transaction import Transaction, TransactionWithTicker, Price
+from models.section_data import SectionDataMap
 from parser.itr import faa3_parser
 
 # raw workings of this source, told apart by the operation mode they were read from
@@ -101,8 +102,11 @@ def parse_rsu(
 def parse(
     input_file_abs_path: str,
     output_folder_abs_path: str,
+    operation_mode: str,
+    calendar_mode: str,
+    assessment_year: int,
     time_bounds: t.Optional[date_utils.DateBounds],
-) -> t.List[TransactionWithTicker]:
+) -> SectionDataMap:
     logger.DEBUG = DEBUG
     purchases: t.List[TransactionWithTicker] = []
     with pd.ExcelFile(input_file_abs_path, engine="openpyxl") as xl:
@@ -145,4 +149,10 @@ def parse(
             f"{ticker}: Total shares present in the sheet "
             + f"= {sum(map(lambda x:x.purchase.quantity, ticker_shares_map[ticker]))}"
         )
-    return purchases
+    return faa3_parser.parse(
+        operation_mode,
+        calendar_mode,
+        purchases,
+        assessment_year,
+        output_folder_abs_path,
+    )

@@ -5,8 +5,9 @@ from models.transaction import Transaction, Price
 from models.asset_sale import (
     AssetSale,
     NOT_APPLICABLE,
-    SectionType,
 )
+from models.section_type import SectionType
+from models.section_data import SectionDataMap
 from parser.demat.groww.constants import NON_EQUITY_LINKED_SHARES
 
 warn_missing_module("pandas")
@@ -168,9 +169,7 @@ def __parse_row(
             quantity=quantity,
         ),
         purchase_transaction=Transaction(
-            date=date_utils.parse_dd_mm_yyyy(
-                cell_text(cell(PURCHASE_DATE_HEADER))
-            ),
+            date=date_utils.parse_dd_mm_yyyy(cell_text(cell(PURCHASE_DATE_HEADER))),
             fmv=Price(to_float(cell(PURCHASE_PRICE_HEADER)), CURRENCY_CODE),
             quantity=quantity,
         ),
@@ -252,7 +251,7 @@ def parse_sheet(
 def parse(
     input_file_abs_path: str,
     time_bounds: t.Optional[date_utils.DateBounds] = None,
-) -> t.List[AssetSale]:
+) -> SectionDataMap:
     logger.DEBUG = DEBUG
     sales: t.List[AssetSale] = []
     deductible_charges: t.Optional[float] = None
@@ -285,4 +284,8 @@ def parse(
         + f"total gains({CURRENCY_CODE}) = "
         + f"{round(sum(map(lambda sale: sale.gains.price, sales)), 2)}"
     )
-    return sales
+
+    sections: SectionDataMap = {}
+    for sale in sales:
+        sections.setdefault(sale.section_type, []).append(sale)
+    return sections

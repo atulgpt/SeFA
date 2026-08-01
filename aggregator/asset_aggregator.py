@@ -10,7 +10,10 @@ from utils.runtime_utils import warn_missing_module
 from utils import logger, file_utils, date_utils
 from utils.rates import rbi_rates_utils
 from models.transaction import Transaction
-from models.asset_sale import AssetSale, SectionType
+from models.asset_sale import AssetSale
+from models.section_type import CAPITAL_GAIN_SECTION_TYPES, SectionType
+from models.section_data import SectionDataMap
+from parser.itr import faa3_parser
 
 warn_missing_module("pandas")
 warn_missing_module("openpyxl")
@@ -472,10 +475,29 @@ def __write_schedule_112a(
 
 
 def parse(
-    sales: t.List[AssetSale],
+    sections: SectionDataMap,
     output_folder_abs_path: str,
-) -> t.List[AssetSale]:
+) -> None:
+    """
+    Writes every filed artefact the run's sections call for: the schedule FA under
+    section A3 upload, the capital gain summary with its quarter wise breakup, the
+    schedule 112A upload and the sale wise workbook backing them
+    """
     logger.DEBUG = DEBUG
+
+    fa_entries = sections.get(SectionType.SCHEDULE_FA_A3, [])
+    if fa_entries:
+        faa3_parser.write_fa_entries(fa_entries, output_folder_abs_path)
+
+    sales: t.List[AssetSale] = [
+        sale
+        for section_type in CAPITAL_GAIN_SECTION_TYPES
+        for sale in sections.get(section_type, [])
+    ]
+    if not sales:
+        logger.log("No capital gain section present, nothing further to write")
+        return
+
     # serial numbers run broker wise and, within a broker, purchase date wise
     ordered_sales = sorted(
         sales,
@@ -490,7 +512,7 @@ def parse(
     present_section_types = {sale.section_type for sale in ordered_sales}
     section_types = [
         section_type
-        for section_type in SectionType
+        for section_type in CAPITAL_GAIN_SECTION_TYPES
         if section_type in present_section_types
     ]
 
@@ -535,5 +557,3 @@ def parse(
             f" {GRANDFATHERING_CUTOFF_DATE}, skipping"
             f" {SCHEDULE_112A_OUTPUT_FILE_NAME}"
         )
-
-    return ordered_sales
