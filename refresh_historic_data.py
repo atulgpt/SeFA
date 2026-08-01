@@ -6,6 +6,7 @@ The ITR parser (utils/share_data_utils.py) reads a single-header CSV with a
 MultiIndex column frame whose default to_csv output has extra header rows, so
 this script flattens the columns and reformats the date before writing.
 """
+
 import argparse
 import os
 import sys
@@ -23,7 +24,9 @@ def refresh(ticker: str, start: str, end: str) -> str:
     warn_missing_module("yfinance")
     import yfinance as yf
 
-    df = yf.download(ticker.upper(), start=start, end=end, auto_adjust=False)
+    df = yf.download(
+        ticker.upper(), start=start, end=end, auto_adjust=False, rounding=True
+    )
     if df.empty:
         raise SystemExit(f"No data returned from yfinance for ticker {ticker}")
 

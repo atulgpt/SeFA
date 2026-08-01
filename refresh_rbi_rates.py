@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Refresh historic_data/rates/rbi/rates.xls from the FBIL reference rate.
+"""Refresh the reference rate workbook at `RATES_FILE_ABS_PATH` from FBIL.
 
-The ITR parser (utils/rates/rbi_rates_utils.py) reads a "Reference Rates" sheet
-whose header sits on the third row (two title rows above it) with columns
+The ITR parser (utils/rates/rbi_rates_utils.py) reads the `RATES_SHEET_NAME`
+sheet whose header sits on the third row (two title rows above it) with columns
 "Date" (%d %b %Y), "Time", "Currency Pairs" (e.g. "INR / 1 USD"), "Rate" and
 "Comments". For each month it keeps the latest available date, i.e. the
 month-end reference rate.
@@ -13,18 +13,17 @@ Frankfurter API (https://frankfurter.dev), which exposes the FBIL benchmark via
 `providers=FBIL`. Only the currency pairs that are refreshed are replaced; any
 other pairs already in the file (and older RBI-era data) are left untouched.
 """
+
 import argparse
 import os
 import sys
 from datetime import date, datetime
 
+from utils.rates.constants import RATES_FILE_ABS_PATH, RATES_SHEET_NAME
 from utils.runtime_utils import warn_missing_module
 
-script_path = os.path.realpath(os.path.dirname(__file__))
-RATES_PATH = os.path.join(script_path, "historic_data", "rates", "rbi", "rates.xls")
-SHEET_NAME = "Reference Rates"
 COLUMNS = ["Date", "Time", "Currency Pairs", "Rate", "Comments"]
-TITLE_ROWS = ["Financial Benchmarks India Pvt Ltd", SHEET_NAME]
+TITLE_ROWS = ["Financial Benchmarks India Pvt Ltd", RATES_SHEET_NAME]
 RATE_TIME = "1:30:00 PM"
 DATE_FMT = "%d %b %Y"
 
@@ -78,7 +77,7 @@ def __read_existing(rates_path: str):
     import pandas as pd
 
     with pd.ExcelFile(rates_path, engine="openpyxl") as xl:
-        df = xl.parse(sheet_name=SHEET_NAME, skiprows=0, header=2)
+        df = xl.parse(sheet_name=RATES_SHEET_NAME, skiprows=0, header=2)
     df = df.reindex(columns=COLUMNS)
     return [
         [None if pd.isna(value) else value for value in row]
@@ -92,26 +91,23 @@ def __write(rates_path: str, rows):
 
     wb = Workbook()
     ws = wb.active
-    ws.title = SHEET_NAME
+    ws.title = RATES_SHEET_NAME
     for title in TITLE_ROWS:
         ws.append([title])
     ws.append(COLUMNS)
     for row in rows:
         ws.append(row)
 
-    # openpyxl refuses to save under a ".xls" name, so write .xlsx bytes to a
-    # temp path and move it into place (the parser reads it via pandas anyway).
-    tmp_path = rates_path + ".tmp.xlsx"
-    wb.save(tmp_path)
-    os.replace(tmp_path, rates_path)
+    wb.save(rates_path)
 
 
-def refresh(currencies, start: str, end: str, rates_path: str = RATES_PATH) -> str:
+def refresh(
+    currencies: list[str], start: str, end: str, rates_path: str = RATES_FILE_ABS_PATH
+) -> str:
     refreshed_pairs = {f"INR / 1 {cur.upper()}" for cur in currencies}
+    existing_rows = __read_existing(rates_path)
     # Keep every existing row whose pair we are NOT refreshing.
-    rows = [
-        row for row in __read_existing(rates_path) if row[2] not in refreshed_pairs
-    ]
+    rows = [row for row in existing_rows if row[2] not in refreshed_pairs]
 
     added = 0
     for cur in currencies:
@@ -119,6 +115,16 @@ def refresh(currencies, start: str, end: str, rates_path: str = RATES_PATH) -> s
         for entry_date, rate in __fetch_month_end_rates(cur, start, end):
             rows.append([entry_date.strftime(DATE_FMT), RATE_TIME, pair, rate, None])
             added += 1
+
+    # The workbook stamps its own creation time, so re-saving an unchanged sheet
+    # still rewrites the file. Nothing published since the last refresh means
+    # nothing to write
+    if rows == existing_rows:
+        print(
+            f"{rates_path} already holds every rate published up to {end}, "
+            "leaving it untouched"
+        )
+        return rates_path
 
     os.makedirs(os.path.dirname(rates_path), exist_ok=True)
     __write(rates_path, rows)
@@ -131,7 +137,7 @@ def refresh(currencies, start: str, end: str, rates_path: str = RATES_PATH) -> s
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Refresh RBI/FBIL reference rate xls from Frankfurter (FBIL)"
+        description="Refresh RBI/FBIL reference rate xlsx from Frankfurter (FBIL)"
     )
     parser.add_argument(
         "-c",

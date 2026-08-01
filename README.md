@@ -77,7 +77,7 @@ do not need to run the refresh scripts yourself:
 
 - **Share FMV** (`historic_data/shares/<ticker>/data.csv`) from Yahoo Finance via `yfinance`,
   for every ticker in your `BenefitHistory.xlsx`.
-- **RBI/FBIL reference rates** (`historic_data/rates/rbi/rates.xls`) from the FBIL benchmark
+- **RBI/FBIL reference rates** (`historic_data/rates/rbi/rates.xlsx`) from the FBIL benchmark
   via the public [Frankfurter API](https://frankfurter.dev), for every currency used by those
   tickers. FBIL data is available from 2018-07-10 onwards; only the refreshed currency pairs
   are replaced, other pairs already in the file are left untouched.
@@ -114,7 +114,7 @@ The realized sale modes write into the same folder:
 - Only parsing data from `BenefitHistory.xlsx` is supported.
 -  If you have sold any shares, the script will not adjust those. You have to subtract the `BenefitHistory.xlsx` manually
 -  This script is only tested under Mac, with a single `adbe` ticker with `calendar` `--calendar-mode` mode
--  Currently script works based on `historic_data`. Share FMV values is  present in [data.csv][data csv file]([ref][data csv ref])(check the first and last data in the file) and [rates.xls][SBI rates]([ref][SBI rates ref]) for RBI rate conversion
+-  Currently script works based on `historic_data`. Share FMV values is  present in [data.csv][data csv file]([ref][data csv ref])(check the first and last data in the file) and [rates.xlsx][SBI rates]([ref][SBI rates ref]) for RBI rate conversion
 
 # Author
 [Atul Gupta](https://github.com/atulgpt)
@@ -125,5 +125,5 @@ In case of any issues, please create a bug report. Also, do not entirely depend 
 
  [data csv file]: https://github.com/atulgpt/SeFA/blob/main/historic_data/shares/adbe/data.csv
  [data csv ref]: https://finance.yahoo.com/quote/ADBE/history/
- [SBI rates]: https://github.com/atulgpt/SeFA/blob/main/historic_data/rates/rbi/rates.xls
+ [SBI rates]: https://github.com/atulgpt/SeFA/blob/main/historic_data/rates/rbi/rates.xlsx
  [SBI rates ref]: https://www.fbil.org.in/#/home

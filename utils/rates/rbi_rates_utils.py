@@ -8,6 +8,7 @@ from datetime import datetime
 import typing as t
 
 from .. import date_utils, logger
+from .constants import RATES_FILE_ABS_PATH, RATES_SHEET_NAME
 
 
 @dataclass
@@ -26,24 +27,12 @@ def __init_map(currency_code: str) -> RbiYearMonthRateMap:
     if currency_code not in rate_map_cache:
         print(f"Parsing rbi rate for currency code = {currency_code}")
         currency_rate_map: RbiYearMonthRateMap = {}
-        script_path = os.path.realpath(os.path.dirname(__file__))
-        rbi_rates_file_abs_path = os.path.join(
-            script_path,
-            os.pardir,
-            os.pardir,
-            "historic_data",
-            "rates",
-            "rbi",
-            "rates.xls",
-        )
-        if not os.path.exists(rbi_rates_file_abs_path):
-            raise AssertionError(
-                f"RBI rates.xls {rbi_rates_file_abs_path} is NOT present"
-            )
+        if not os.path.exists(RATES_FILE_ABS_PATH):
+            raise AssertionError(f"RBI rates {RATES_FILE_ABS_PATH} is NOT present")
 
-        with pd.ExcelFile(rbi_rates_file_abs_path, engine="openpyxl") as xl:
-            logger.debug_log("Currently parsing Reference Rates sheet")
-            sheet_pd = xl.parse(sheet_name="Reference Rates", skiprows=0, header=2)
+        with pd.ExcelFile(RATES_FILE_ABS_PATH, engine="openpyxl") as xl:
+            logger.debug_log(f"Currently parsing {RATES_SHEET_NAME} sheet")
+            sheet_pd = xl.parse(sheet_name=RATES_SHEET_NAME, skiprows=0, header=2)
             for _, data in sheet_pd.iterrows():
                 if data["Currency Pairs"] == f"INR / 1 {currency_code.upper()}":
                     rate_time = datetime.strptime(data["Date"], "%d %b %Y")
@@ -70,15 +59,14 @@ def __init_map(currency_code: str) -> RbiYearMonthRateMap:
 
 def get_rate_at_month(currency_code: str, month: int, year: int) -> float:
     rbi_year_month_rate_map = __init_map(currency_code)
-    rate_excel_path = os.path.join("historic_data", "rates", "rbi", "rates.xls")
     if year not in rbi_year_month_rate_map:
         raise ValueError(
-            f"No rbi data for currency code {currency_code} in {rate_excel_path} for year {year}"
+            f"No rbi data for currency code {currency_code} in {RATES_FILE_ABS_PATH} for year {year}"
         )
     rbi_month_rate_map = rbi_year_month_rate_map[year]
     if month not in rbi_month_rate_map:
         raise ValueError(
-            f"No rbi data for currency code {currency_code} in {rate_excel_path} \
+            f"No rbi data for currency code {currency_code} in {RATES_FILE_ABS_PATH} \
 for month {month}/{year}"
         )
     return rbi_month_rate_map[month]["rate"]
