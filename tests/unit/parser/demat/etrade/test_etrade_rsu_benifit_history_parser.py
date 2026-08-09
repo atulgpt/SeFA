@@ -3,22 +3,25 @@ from parser.demat.etrade import etrade_benefit_history_parser
 import pandas as pd
 
 from tests.unit.parser.demat.etrade.conftest import create_rsu_mock
+from utils import date_utils
 
 
 def test_rsu_parsing_with_only_vest(
     benefit_history_excel_file_with_vested_rsu: pd.ExcelFile,
+    time_bounds_in_ms: date_utils.DateBoundsInMs,
 ):
     rsu_purchase = etrade_benefit_history_parser.parse_rsu(
-        benefit_history_excel_file_with_vested_rsu
+        benefit_history_excel_file_with_vested_rsu, time_bounds_in_ms
     )
     assert len(rsu_purchase) == 0
 
 
 def test_rsu_parsing_with_only_released_shares(
     benefit_history_excel_file_with_vested_and_released_rsu: pd.ExcelFile,
+    time_bounds_in_ms: date_utils.DateBoundsInMs,
 ):
     rsu_purchases = etrade_benefit_history_parser.parse_rsu(
-        benefit_history_excel_file_with_vested_and_released_rsu
+        benefit_history_excel_file_with_vested_and_released_rsu, time_bounds_in_ms
     )
     assert len(rsu_purchases) == 1
     rsu_purchase = rsu_purchases[0]
@@ -31,7 +34,9 @@ def test_rsu_parsing_with_only_released_shares(
     }
 
 
-def test_wrong_rsu_sheet_without_grant():
+def test_wrong_rsu_sheet_without_grant(
+    time_bounds_in_ms: date_utils.DateBoundsInMs,
+):
     rsu_sheet = create_rsu_mock(
         {
             "Record Type": ["Event", "Event"],
@@ -42,9 +47,9 @@ def test_wrong_rsu_sheet_without_grant():
         }
     )
     with pytest.raises(AssertionError) as error:
-        etrade_benefit_history_parser.parse_rsu(rsu_sheet)
+        etrade_benefit_history_parser.parse_rsu(rsu_sheet, time_bounds_in_ms)
     assert (
-        "There is RSU event without Grant event(which contains the ticker info) "
+        "There is RSU event(Shares released) without Grant event(which contains the ticker info) "
         + "hence no ticker info is found while parsing Restricted Stock"
         in str(error.value)
     )

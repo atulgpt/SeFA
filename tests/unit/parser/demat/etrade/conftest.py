@@ -5,11 +5,22 @@ This file contains the etrade related common fixtures using conftest.py
 See [conftest.py](https://docs.pytest.org/en/stable/reference/fixtures.html#conftest-py-sharing-fixtures-across-multiple-files)
 """
 
+import time
+
 import pandas as pd
 from unittest.mock import MagicMock
 
 import pytest
 from parser.demat.etrade import etrade_benefit_history_parser
+from utils import date_utils
+
+
+@pytest.fixture(name="time_bounds_in_ms")
+def fixture_time_bounds_in_ms() -> date_utils.DateBoundsInMs:
+    """
+    Open at the start and closing now, so every fixture row is in bounds
+    """
+    return (None, int(time.time() * 1000))
 
 
 @pytest.fixture(name="benefit_history_excel_file_with_no_purchase_espp")

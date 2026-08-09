@@ -66,7 +66,9 @@ FA_ACQUIRED_DATE_HEADER = "Date of acquiring interest"
 FA_INITIAL_VALUE_HEADER = "Initial value of investment"
 FA_PEAK_VALUE_HEADER = "Peak value of investment"
 FA_CLOSING_VALUE_HEADER = "Closing Balance"
-FA_GROSS_PAID_HEADER = "Total gross amount paid/credited to the holding during the period"
+FA_GROSS_PAID_HEADER = (
+    "Total gross amount paid/credited to the holding during the period"
+)
 FA_GROSS_PROCEEDS_HEADER = (
     "Total gross proceeds from sale or redemption of investment during the period"
 )
@@ -246,7 +248,7 @@ def __parse_row(
 def parse_sheet(
     xl: pd.ExcelFile,
     sheet_name: str,
-    time_bounds: t.Optional[date_utils.DateBounds],
+    time_bounds_in_ms: t.Optional[date_utils.DateBoundsInMs],
 ) -> t.List[AssetSale]:
     logger.debug_log(f"Currently parsing {sheet_name} sheet")
     sheet_pd = xl.parse(sheet_name=sheet_name, header=None)
@@ -280,7 +282,7 @@ def parse_sheet(
             continue
         parsed_sale = __parse_row(data, column_map, section_type)
         if not date_utils.is_in_bounds(
-            parsed_sale.sale_transaction.date["time_in_millis"], time_bounds
+            parsed_sale.sale_transaction.date["time_in_millis"], time_bounds_in_ms
         ):
             continue
         sales.append(parsed_sale)
@@ -354,7 +356,7 @@ def __parse_fa_sheet(xl: pd.ExcelFile, sheet_name: str) -> t.List[FAA3]:
 
 def parse(
     input_file_abs_path: str,
-    time_bounds: t.Optional[date_utils.DateBounds] = None,
+    time_bounds_in_ms: t.Optional[date_utils.DateBoundsInMs] = None,
 ) -> SectionDataMap:
     logger.DEBUG = DEBUG
     sales: t.List[AssetSale] = []
@@ -377,7 +379,7 @@ def parse(
             + f"{[pattern.pattern for pattern in SUPPORTED_SHEET_NAME_PATTERNS]}"
         )
         for sheet_name in parsable_sheet_names:
-            sales.extend(parse_sheet(xl, sheet_name, time_bounds))
+            sales.extend(parse_sheet(xl, sheet_name, time_bounds_in_ms))
 
         for sheet_name in sheet_names:
             if FA_SHEET_NAME_PATTERN.search(sheet_name):

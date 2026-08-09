@@ -161,7 +161,9 @@ def main():
     if not args.skip_refresh:
         refresh_historic_data()
 
-    time_bounds = date_utils.calendar_range(args.calendar_mode, args.assessment_year)
+    time_bounds_in_ms = date_utils.calendar_range(
+        args.calendar_mode, args.assessment_year
+    )
 
     # every parser hands back its rows keyed by the section they are filed under, so
     # a run is the merge of everything its inputs produced
@@ -176,7 +178,7 @@ def main():
             for sale_operation_parser in SALE_OPERATION_PARSERS[operation_mode]:
                 collect(
                     sale_operation_parser.parse(
-                        input_excel_file, time_bounds=time_bounds
+                        input_excel_file, time_bounds_in_ms=time_bounds_in_ms
                     )
                 )
         elif operation_mode == ETRADE_HOLDINGS_BYSTATUS_OPERATION_MODE:
@@ -197,11 +199,9 @@ def main():
                     operation_mode,
                     args.calendar_mode,
                     args.assessment_year,
-                    time_bounds=(
+                    time_bounds_in_ms=(
                         None,
-                        date_utils.calendar_range(
-                            "calendar", args.assessment_year
-                        )[1],
+                        date_utils.calendar_range("calendar", args.assessment_year)[1],
                     ),
                 )
             )
@@ -230,7 +230,11 @@ def refresh_historic_data():
             )
 
     currencies = sorted(
-        {ticker_currency_info[ticker] for ticker in tickers if ticker in ticker_currency_info}
+        {
+            ticker_currency_info[ticker]
+            for ticker in tickers
+            if ticker in ticker_currency_info
+        }
     )
     if currencies:
         try:

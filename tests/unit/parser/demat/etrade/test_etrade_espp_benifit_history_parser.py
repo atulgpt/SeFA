@@ -1,11 +1,15 @@
 from parser.demat.etrade import etrade_benefit_history_parser
 import pandas as pd
 
+from utils import date_utils
+
+
 def test_espp_parsing_with_no_purchase(
     benefit_history_excel_file_with_no_purchase_espp: pd.ExcelFile,
+    time_bounds_in_ms: date_utils.DateBoundsInMs,
 ):
     espp_purchase = etrade_benefit_history_parser.parse_espp(
-        benefit_history_excel_file_with_no_purchase_espp
+        benefit_history_excel_file_with_no_purchase_espp, time_bounds_in_ms
     )
     assert len(espp_purchase) == 0
 
@@ -39,15 +43,17 @@ def test_espp_parsing_row_with_valid_purchase():
 
 def test_espp_parsing_with_only_released_shares(
     benefit_history_excel_file_with_vested_and_released_espp: pd.ExcelFile,
+    time_bounds_in_ms: date_utils.DateBoundsInMs,
 ):
     espp_purchases = etrade_benefit_history_parser.parse_espp(
-        benefit_history_excel_file_with_vested_and_released_espp
+        benefit_history_excel_file_with_vested_and_released_espp,
+        time_bounds_in_ms=time_bounds_in_ms,
     )
     assert len(espp_purchases) == 1
     espp_purchase = espp_purchases[0]
     assert espp_purchase.purchase.quantity == 2
-    assert espp_purchase.purchase.purchase_fmv.currency_code == "USD"
-    assert espp_purchase.purchase.purchase_fmv.price == 435.31
+    assert espp_purchase.purchase.fmv.currency_code == "USD"
+    assert espp_purchase.purchase.fmv.price == 435.31
     assert espp_purchase.ticker == "adbe"
     assert espp_purchase.purchase.date == {
         "disp_time": "30-Jun-2020",

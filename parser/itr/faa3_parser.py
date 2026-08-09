@@ -67,7 +67,9 @@ def parse_org_purchases(
     #     t = a.purchase.date["disp_time"]
     #     print(f"a = {a.purchase.quantity} on da = {t}")
 
-    previous_sum = sum(map(lambda purchase: purchase.purchase.quantity, before_purchases))
+    previous_sum = sum(
+        map(lambda purchase: purchase.purchase.quantity, before_purchases)
+    )
     print(
         f"{ticker}: Previous period(before {date_utils.display_time(start_time_in_ms)}) total share = {previous_sum}"
     )
@@ -145,9 +147,7 @@ def __rows(fa_entries: t.List[FAA3]):
             entry.org.zip_code,
             entry.org.nature,
             # ref https://www.reddit.com/r/IndiaTax/comments/1mhbi0w/a3_template_commonerrorscsv_row_skip_any_idea/
-            date_utils.format_time(
-                entry.purchase_date["time_in_millis"], "%Y-%m-%d"
-            ),
+            date_utils.format_time(entry.purchase_date["time_in_millis"], "%Y-%m-%d"),
             round(entry.purchase_price),
             round(entry.peak_price),
             round(entry.closing_price),
