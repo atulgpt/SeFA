@@ -74,13 +74,14 @@ def write_csv_to_file(
     override: bool,
     is_raw: bool = False,
     print_path_to_console: bool = False,
+    data_quoting: int = csv.QUOTE_MINIMAL,
 ) -> str:
     final_file_abs_path = __resolve_file_path(
         output_folder_abs_path, file_name, is_raw, override
     )
     with open(final_file_abs_path, "w", newline="", encoding="utf-8") as file:
-        writer = csv.writer(file, delimiter=",", quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(keys)
+        csv.writer(file, delimiter=",", quoting=csv.QUOTE_MINIMAL).writerow(keys)
+        writer = csv.writer(file, delimiter=",", quoting=data_quoting, escapechar="\\")
         for obj in objs:
             writer.writerow(obj)
         if print_path_to_console:
