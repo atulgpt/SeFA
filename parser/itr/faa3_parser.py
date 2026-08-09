@@ -1,3 +1,4 @@
+import csv
 import os
 import typing as t
 from itertools import groupby
@@ -172,6 +173,7 @@ def write_fa_entries(
         __rows(fa_entries),
         True,
         print_path_to_console=True,
+        data_quoting=csv.QUOTE_NONE,
     )
 
 
@@ -216,5 +218,6 @@ def parse(
         __rows(fa_entries),
         True,
         print_path_to_console=True,
+        data_quoting=csv.QUOTE_NONE,
     )
     return {SectionType.SCHEDULE_FA_A3: fa_entries}

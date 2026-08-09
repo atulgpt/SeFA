@@ -334,8 +334,8 @@ def __parse_fa_sheet(xl: pd.ExcelFile, sheet_name: str) -> t.List[FAA3]:
                     country_name=cell_text(cell(FA_COUNTRY_NAME_HEADER)),
                     # the report zero pads the code, the utility does not take it
                     country_code=str(int(to_float(cell(FA_COUNTRY_CODE_HEADER)))),
-                    name=cell_text(cell(FA_ENTITY_NAME_HEADER)),
-                    address=cell_text(cell(FA_ADDRESS_HEADER)),
+                    name=cell_text(cell(FA_ENTITY_NAME_HEADER)).replace(",", ""),
+                    address=cell_text(cell(FA_ADDRESS_HEADER)).replace(",", ""),
                     nature=cell_text(cell(FA_NATURE_HEADER)),
                     zip_code=cell_text(cell(FA_ZIP_HEADER)),
                 ),
