@@ -41,7 +41,7 @@ def parse_espp_row(data: pd.Series) -> t.Optional[TransactionWithTicker]:
 
 
 def parse_espp(
-    xl: pd.ExcelFile, time_bounds: t.Optional[date_utils.DateBounds]
+    xl: pd.ExcelFile, time_bounds_in_ms: t.Optional[date_utils.DateBoundsInMs]
 ) -> t.List[TransactionWithTicker]:
     logger.debug_log(f"Currently parsing {ESPP_SHEET_NAME} sheet")
     sheet_pd = xl.parse(sheet_name=ESPP_SHEET_NAME, skiprows=0, header=0)
@@ -75,7 +75,7 @@ def parse_rsu_row(data: pd.Series, ticker: str) -> t.Optional[TransactionWithTic
 
 def parse_rsu(
     xl: pd.ExcelFile,
-    time_bounds: t.Optional[date_utils.DateBounds],
+    time_bounds_in_ms: t.Optional[date_utils.DateBoundsInMs],
 ):
     logger.debug_log(f"Currently parsing {RSU_SHEET_NAME} sheet")
     sheet_pd = xl.parse(sheet_name=RSU_SHEET_NAME, skiprows=0, header=0)
@@ -86,7 +86,7 @@ def parse_rsu(
             current_ticker = data["Symbol"].lower()
         if data["Event Type"] == "Shares released":
             if not date_utils.is_in_bounds(
-                date_utils.parse_mm_dd(data["Date"])["time_in_millis"], time_bounds
+                date_utils.parse_mm_dd(data["Date"])["time_in_millis"], time_bounds_in_ms
             ):
                 continue
             assert current_ticker is not None, (
@@ -105,7 +105,7 @@ def parse(
     operation_mode: str,
     calendar_mode: str,
     assessment_year: int,
-    time_bounds: t.Optional[date_utils.DateBounds],
+    time_bounds_in_ms: t.Optional[date_utils.DateBoundsInMs],
 ) -> SectionDataMap:
     logger.DEBUG = DEBUG
     purchases: t.List[TransactionWithTicker] = []
@@ -117,10 +117,10 @@ def parse(
                 f"Excel sheet don't have either {ESPP_SHEET_NAME} or {RSU_SHEET_NAME}"
             )
             return []
-        espp_purchases = parse_espp(xl, time_bounds)
+        espp_purchases = parse_espp(xl, time_bounds_in_ms)
         purchases.extend(espp_purchases)
 
-        rsu_purchases = parse_rsu(xl, time_bounds)
+        rsu_purchases = parse_rsu(xl, time_bounds_in_ms)
         purchases.extend(rsu_purchases)
 
         # logger.log_json(espp_purchases)

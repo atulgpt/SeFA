@@ -140,7 +140,7 @@ def __parse_block(
     sheet_pd: pd.DataFrame,
     label_row_index: int,
     section_types: t.Tuple[SectionType, SectionType],
-    time_bounds: t.Optional[date_utils.DateBounds],
+    time_bounds_in_ms: t.Optional[date_utils.DateBoundsInMs],
 ) -> t.List[AssetSale]:
     """
     A block runs from its header row up to the first row that no longer carries a
@@ -173,7 +173,7 @@ def __parse_block(
             break
         parsed_sale = __parse_row(data, column_map, section_types)
         if not date_utils.is_in_bounds(
-            parsed_sale.sale_transaction.date["time_in_millis"], time_bounds
+            parsed_sale.sale_transaction.date["time_in_millis"], time_bounds_in_ms
         ):
             continue
         sales.append(parsed_sale)
@@ -183,7 +183,7 @@ def __parse_block(
 def parse_sheet(
     xl: pd.ExcelFile,
     sheet_name: str,
-    time_bounds: t.Optional[date_utils.DateBounds],
+    time_bounds_in_ms: t.Optional[date_utils.DateBoundsInMs],
 ) -> t.List[AssetSale]:
     logger.debug_log(f"Currently parsing {sheet_name} sheet")
     sheet_pd = xl.parse(sheet_name=sheet_name, header=None)
@@ -194,20 +194,20 @@ def parse_sheet(
         section_types = CATEGORY_SECTION_TYPES.get(label)
         if section_types is None:
             continue
-        sales.extend(__parse_block(sheet_pd, row_index, section_types, time_bounds))
+        sales.extend(__parse_block(sheet_pd, row_index, section_types, time_bounds_in_ms))
     return sales
 
 
 def parse(
     input_file_abs_path: str,
-    time_bounds: t.Optional[date_utils.DateBounds] = None,
+    time_bounds_in_ms: t.Optional[date_utils.DateBoundsInMs] = None,
 ) -> SectionDataMap:
     logger.DEBUG = DEBUG
     sales: t.List[AssetSale] = []
     with pd.ExcelFile(input_file_abs_path, engine="openpyxl") as xl:
         logger.log(f"Total sheets present {xl.sheet_names}")
         for sheet_name in xl.sheet_names:
-            sales.extend(parse_sheet(xl, sheet_name, time_bounds))
+            sales.extend(parse_sheet(xl, sheet_name, time_bounds_in_ms))
 
     assert sales, (
         "Excel sheet don't have any block matching " + f"{list(CATEGORY_SECTION_TYPES)}"

@@ -183,8 +183,6 @@ only backs those figures is written with `is_raw=True`, which puts it under `raw
 ## Parser conventions
 
 - One parser per source report, under `parser/demat/<broker>/`.
-- A parser exposes `parse(input_file_abs_path, time_bounds=None) -> t.List[AssetSale]` for a
-  realized sale source, and is registered in `run.py` under `SALE_OPERATION_PARSERS`.
 - Column and block labels are module constants, never inline strings, so a rename on the
   broker's side is a one line change.
 - Match a sheet or a block by pattern or by label constant, never by index.

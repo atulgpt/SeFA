@@ -3,17 +3,17 @@ import typing as t
 
 ONE_DAY_IN_MS = 24 * 60 * 60 * 1000
 
-DateBounds = t.Tuple[t.Optional[int], t.Optional[int]]
+DateBoundsInMs = t.Tuple[t.Optional[int], t.Optional[int]]
 
 
-def is_in_bounds(x: int, bounds: t.Optional[DateBounds]) -> bool:
-    if bounds is None:
+def is_in_bounds(x: int, boundsInMs: t.Optional[DateBoundsInMs]) -> bool:
+    if boundsInMs is None:
         return True
     assert (
-        isinstance(bounds, tuple) and len(bounds) == 2
-    ), f"bounds must be a 2-tuple, found {type(bounds)} len = {len(bounds)}"
+        isinstance(boundsInMs, tuple) and len(boundsInMs) == 2
+    ), f"bounds must be a 2-tuple, found {type(boundsInMs)} len = {len(boundsInMs)}"
     assert isinstance(x, int), f"Provided value x = {x} is of non int type = {type(x)}"
-    start, end = bounds
+    start, end = boundsInMs
     if start is not None and x < start:
         return False
     if end is not None and x > end:
@@ -38,12 +38,14 @@ def __create_date_object(dt: datetime, date_str: str) -> DateObj:
         "orig_disp_time": date_str,
     }
 
+
 def format_time(time_in_ms: int, output_format: str) -> str:
     """
     Formats the time_in_ms in 30-Jun-2020
     """
     dt = datetime.utcfromtimestamp(time_in_ms / 1000)
     return dt.strftime(output_format)
+
 
 def display_time(time_in_ms: int) -> str:
     """
