@@ -14,7 +14,7 @@ def __validate_dates(
     historic_entry_time_in_ms: int,
     desired_purchase_time_in_ms: int,
     used_fmv_time_in_ms: int,
-):
+) -> None:
     if historic_entry_time_in_ms > desired_purchase_time_in_ms:
         raise AssertionError(
             f"Historical FMV date {date_utils.log_timestamp(historic_entry_time_in_ms)} "

@@ -2,6 +2,7 @@ import operator
 import os
 from utils.runtime_utils import warn_missing_module
 from utils import logger, file_utils, date_utils, share_data_utils
+from utils.date_utils import CalendarMode
 from utils.ticker_mapping import ticker_currency_info
 
 warn_missing_module("pandas")
@@ -76,7 +77,7 @@ def parse_rsu_row(data: pd.Series, ticker: str) -> t.Optional[TransactionWithTic
 def parse_rsu(
     xl: pd.ExcelFile,
     time_bounds_in_ms: t.Optional[date_utils.DateBoundsInMs],
-):
+) -> list[TransactionWithTicker]:
     logger.debug_log(f"Currently parsing {RSU_SHEET_NAME} sheet")
     sheet_pd = xl.parse(sheet_name=RSU_SHEET_NAME, skiprows=0, header=0)
     purchases: t.List[TransactionWithTicker] = []
@@ -86,7 +87,8 @@ def parse_rsu(
             current_ticker = data["Symbol"].lower()
         if data["Event Type"] == "Shares released":
             if not date_utils.is_in_bounds(
-                date_utils.parse_mm_dd(data["Date"])["time_in_millis"], time_bounds_in_ms
+                date_utils.parse_mm_dd(data["Date"])["time_in_millis"],
+                time_bounds_in_ms,
             ):
                 continue
             assert current_ticker is not None, (
@@ -103,7 +105,7 @@ def parse(
     input_file_abs_path: str,
     output_folder_abs_path: str,
     operation_mode: str,
-    calendar_mode: str,
+    calendar_mode: CalendarMode,
     assessment_year: int,
     time_bounds_in_ms: t.Optional[date_utils.DateBoundsInMs],
 ) -> SectionDataMap:
@@ -116,7 +118,7 @@ def parse(
             logger.log(
                 f"Excel sheet don't have either {ESPP_SHEET_NAME} or {RSU_SHEET_NAME}"
             )
-            return []
+            return SectionDataMap()
         espp_purchases = parse_espp(xl, time_bounds_in_ms)
         purchases.extend(espp_purchases)
 

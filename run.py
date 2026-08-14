@@ -11,6 +11,7 @@ from utils import logger, date_utils
 from parser.demat.etrade import etrade_holdings_bystatus_parser
 from parser.demat.indmoney import indmoney_us_stocks_parser
 from parser.demat.groww import groww_indian_mf_parser, groww_indian_stocks_parser
+from parser.demat.sale_operation_parser import SaleOperationParser
 from models.asset_sale import AssetSale
 from models.section_type import SectionType
 from models.section_data import SectionDataMap
@@ -33,7 +34,7 @@ GROWW_INDIAN_MF_OPERATION_MODE = "groww_indian_mf"
 # Operation modes reporting realized sales, which schedule FA under section A3 does
 # not consume. A mode lists every parser that reads a table out of that source's
 # report, their sales being aggregated together
-SALE_OPERATION_PARSERS = {
+SALE_OPERATION_PARSERS: t.Dict[str, t.Tuple[SaleOperationParser, ...]] = {
     INDMONEY_US_STOCKS_OPERATION_MODE: (indmoney_us_stocks_parser,),
     GROWW_INDIAN_STOCKS_OPERATION_MODE: (groww_indian_stocks_parser,),
     GROWW_INDIAN_MF_OPERATION_MODE: (groww_indian_mf_parser,),
@@ -77,7 +78,7 @@ def __parse_inputs(inputs: t.List[str]) -> t.List[t.Tuple[str, str]]:
     return parsed_inputs
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="This is a Python module to generate Indian ITR schedule FA under section A3 automatically"
     )
@@ -167,7 +168,7 @@ def main():
 
     # every parser hands back its rows keyed by the section they are filed under, so
     # a run is the merge of everything its inputs produced
-    sections: SectionDataMap = {}
+    sections: SectionDataMap = SectionDataMap()
 
     def collect(parsed: SectionDataMap) -> None:
         for section_type, rows in parsed.items():
@@ -209,7 +210,7 @@ def main():
     asset_aggregator.parse(sections, args.output_folder)
 
 
-def refresh_historic_data():
+def refresh_historic_data() -> None:
     """Best-effort refresh of historic share prices and RBI/FBIL reference rates
     for every configured ticker. Failures (missing dependency, no network) are
     logged and ignored so the run falls back to the bundled historic_data."""

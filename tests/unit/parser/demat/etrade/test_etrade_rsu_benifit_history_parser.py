@@ -57,20 +57,22 @@ def test_wrong_rsu_sheet_without_grant(
 
 def test_rsu_row_without_no_released_share():
     rsu_purchase = etrade_benefit_history_parser.parse_rsu_row(
-        {"Event Type": "Random event type"}, "ADBE"
+        pd.Series({"Event Type": "Random event type"}), "ADBE"
     )
     assert rsu_purchase is None
 
 
 def test_rsu_row_with_released_share():
     rsu_purchase = etrade_benefit_history_parser.parse_rsu_row(
-        {
-            "Record Type": "Event",
-            "Symbol": "",
-            "Event Type": "Shares released",
-            "Date": "10/15/2023",
-            "Qty. or Amount": 0.5,
-        },
+        pd.Series(
+            {
+                "Record Type": "Event",
+                "Symbol": "",
+                "Event Type": "Shares released",
+                "Date": "10/15/2023",
+                "Qty. or Amount": 0.5,
+            }
+        ),
         "ADBE",
     )
 

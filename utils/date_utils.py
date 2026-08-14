@@ -21,7 +21,7 @@ def is_in_bounds(x: int, boundsInMs: t.Optional[DateBoundsInMs]) -> bool:
     return True
 
 
-def epoch_in_ms(dt) -> int:
+def epoch_in_ms(dt: datetime) -> int:
     epoch = datetime.utcfromtimestamp(0)
     return int((dt - epoch).total_seconds()) * 1000
 
@@ -83,7 +83,7 @@ def parse_dd_mm_yyyy(date_str: str) -> DateObj:
     return __create_date_object(date_time, date_str)
 
 
-def parse_yyyy_mm_dd(date_str) -> DateObj:
+def parse_yyyy_mm_dd(date_str: str) -> DateObj:
     """
     Parses formats like 04/15/2021 in time from epoch in milliseconds
     """

@@ -13,14 +13,27 @@ import typing as t
 EMPTY_CELL_MARKER = "-"
 
 
-def __is_number(value) -> bool:
+def assert_sheet_names(xl: pd.ExcelFile) -> t.List[str]:
+    """
+    Name of every sheet of a workbook, in the order the workbook holds them
+
+    A workbook addresses a sheet by its index as well, so a name comes back as
+    `int | str`, while every report read here holds named sheets only
+    """
+    assert all(
+        isinstance(name, str) for name in xl.sheet_names
+    ), f"Excel sheet has an unnamed sheet. Found sheets = {xl.sheet_names}"
+    return t.cast(t.List[str], xl.sheet_names)
+
+
+def __is_number(value: t.Any) -> bool:
     """
     A bool is a number to pandas but never a figure a report meant to state
     """
     return pd.api.types.is_number(value) and not isinstance(value, bool)
 
 
-def is_blank_cell(value) -> bool:
+def is_blank_cell(value: t.Any) -> bool:
     """
     Whether a spreadsheet cell carries no value at all, which is how a report marks
     the end of a block and the columns past the end of a table
@@ -32,7 +45,7 @@ def is_blank_cell(value) -> bool:
     )
 
 
-def cell_text(value) -> str:
+def cell_text(value: t.Any) -> str:
     """
     Trimmed text of a spreadsheet cell the report was expected to fill
     """
@@ -44,7 +57,7 @@ def cell_text(value) -> str:
     return str(value).strip()
 
 
-def optional_cell_text(value) -> str:
+def optional_cell_text(value: t.Any) -> str:
     """
     Trimmed text of a spreadsheet cell that a report is free to leave blank, empty
     when it did
@@ -54,7 +67,7 @@ def optional_cell_text(value) -> str:
     return cell_text(value)
 
 
-def to_float(value) -> float:
+def to_float(value: t.Any) -> float:
     """
     Numeric value of a spreadsheet cell. A thousands separator and the dash a report
     prints in place of a figure are both read as part of the number, but an empty

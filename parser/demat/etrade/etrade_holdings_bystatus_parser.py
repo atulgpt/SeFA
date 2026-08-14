@@ -4,6 +4,7 @@ from models.section_data import SectionDataMap
 from utils.runtime_utils import warn_missing_module
 from utils.ticker_mapping import ticker_currency_info
 from utils import logger, file_utils, date_utils
+from utils.date_utils import CalendarMode
 
 warn_missing_module("pandas")
 warn_missing_module("openpyxl")
@@ -58,7 +59,7 @@ def parse(
     input_file_abs_path: str,
     output_folder_abs_path: str,
     operation_mode: str,
-    calendar_mode: str,
+    calendar_mode: CalendarMode,
     assessment_year: int,
 ) -> SectionDataMap:
     logger.DEBUG = DEBUG
@@ -68,7 +69,7 @@ def parse(
         logger.log(f"Total sheets being process {sheet_names}")
         if SELLABLE_SHEET_NAME not in sheet_names:
             logger.log(f"Excel sheet don't have either {SELLABLE_SHEET_NAME}")
-            return []
+            return SectionDataMap()
         purchases = parse_sellable(xl)
 
         # logger.log_json(espp_purchases)

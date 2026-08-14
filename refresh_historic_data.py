@@ -46,7 +46,7 @@ def refresh(ticker: str, start: str, end: str) -> str:
     return out_path
 
 
-def main():
+def main() -> None:
     from datetime import date, timedelta
 
     parser = argparse.ArgumentParser(

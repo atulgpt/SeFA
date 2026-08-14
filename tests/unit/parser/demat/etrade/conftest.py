@@ -6,6 +6,7 @@ See [conftest.py](https://docs.pytest.org/en/stable/reference/fixtures.html#conf
 """
 
 import time
+import typing as t
 
 import pandas as pd
 from unittest.mock import MagicMock
@@ -98,7 +99,7 @@ def fixture_benefit_history_excel_file_with_espp_and_rsu():
     )
 
 
-def create_benefit_history_mock(data_frame_dict: dict) -> MagicMock:
+def create_benefit_history_mock(data_frame_dict: t.Dict[str, t.Any]) -> MagicMock:
     mock_excel_file = MagicMock(spec=pd.ExcelFile)
 
     def parse(sheet_name: str, skiprows: int, header: int):

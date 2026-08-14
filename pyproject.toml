@@ -13,6 +13,17 @@ dependencies = [
     "requests",
 ]
 
+[project.optional-dependencies]
+test = [
+    "pytest~=9.1",
+]
+typecheck = [
+    "mypy~=2.3.0",
+    "pandas-stubs==3.0.5.260730",
+    "types-openpyxl==3.1.5.20260807",
+    "types-requests==2.33.0.20260712",
+]
+
 [tool.setuptools.packages.find]
 include = ["aggregator*", "models*", "parser*", "utils*"]
 

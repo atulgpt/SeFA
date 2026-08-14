@@ -26,8 +26,29 @@ jobs:
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e .
-          python -m pip install pytest
+          python -m pip install -e ".[test]"
 
       - name: Run tests
         run: python -m pytest tests -q
+
+  types:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # the version mypy.ini declares, so CI and a local run agree
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          # the type check reads `tests` too, so it needs what the tests import
+          python -m pip install -e ".[test,typecheck]"
+
+      - name: Type check
+        run: python -m mypy

@@ -5,6 +5,7 @@ import pytest
 
 from aggregator import asset_aggregator
 from models.asset_sale import NOT_APPLICABLE, AssetSale
+from models.section_data import SectionDataMap, SectionDataRow
 from models.section_type import SectionType
 from models.transaction import Price, Transaction
 from utils import date_utils
@@ -80,9 +81,9 @@ def build_sale(
 
 def build_section_sales(
     section_type: SectionType,
-    quarter_gains: t.List[int],
+    quarter_gains: t.Sequence[float],
     purchase_dates: t.Tuple[str, ...],
-) -> t.List[AssetSale]:
+) -> t.List[SectionDataRow]:
     """
     One sale per quarter, the sale sitting in quarter `n` gaining `quarter_gains[n]`
     """
@@ -122,25 +123,27 @@ def fixture_capital_gain_summary(tmp_path) -> str:
     The workbook written for a run holding a sale in every quarter of each of the
     three sections
     """
-    sections = {
-        SectionType.SECTION_111A: build_section_sales(
-            SectionType.SECTION_111A,
-            quarter_gains=TEST_SECTION_111A_QUARTER_GAINS,
-            purchase_dates=("2023-01-05",) * len(QUARTER_SALE_DATES),
-        ),
-        # the first quarter's holding was bought before the 31-Jan-2018 cutoff, so
-        # this section also exercises the grandfathered schedule 112A path
-        SectionType.SECTION_112A: build_section_sales(
-            SectionType.SECTION_112A,
-            quarter_gains=TEST_SECTION_112A_QUARTER_GAINS,
-            purchase_dates=("2017-06-01",) + ("2020-05-01",) * 4,
-        ),
-        SectionType.SECTION_SLAB_SHORT: build_section_sales(
-            SectionType.SECTION_SLAB_SHORT,
-            quarter_gains=TEST_SECTION_SLAB_SHORT_QUARTER_GAINS,
-            purchase_dates=("2023-01-10",) * len(QUARTER_SALE_DATES),
-        ),
-    }
+    sections = SectionDataMap(
+        {
+            SectionType.SECTION_111A: build_section_sales(
+                SectionType.SECTION_111A,
+                quarter_gains=TEST_SECTION_111A_QUARTER_GAINS,
+                purchase_dates=("2023-01-05",) * len(QUARTER_SALE_DATES),
+            ),
+            # the first quarter's holding was bought before the 31-Jan-2018 cutoff, so
+            # this section also exercises the grandfathered schedule 112A path
+            SectionType.SECTION_112A: build_section_sales(
+                SectionType.SECTION_112A,
+                quarter_gains=TEST_SECTION_112A_QUARTER_GAINS,
+                purchase_dates=("2017-06-01",) + ("2020-05-01",) * 4,
+            ),
+            SectionType.SECTION_SLAB_SHORT: build_section_sales(
+                SectionType.SECTION_SLAB_SHORT,
+                quarter_gains=TEST_SECTION_SLAB_SHORT_QUARTER_GAINS,
+                purchase_dates=("2023-01-10",) * len(QUARTER_SALE_DATES),
+            ),
+        }
+    )
 
     asset_aggregator.parse(sections, str(tmp_path))
     return str(tmp_path / asset_aggregator.CAPITAL_GAIN_SUMMARY_OUTPUT_FILE_NAME)
@@ -232,13 +235,15 @@ def write_single_section_summary(tmp_path, quarter_gains: t.List[float]) -> str:
     quarter by quarter. A quarter past the end of the list holds no sale at all
     """
     asset_aggregator.parse(
-        {
-            SectionType.SECTION_111A: build_section_sales(
-                SectionType.SECTION_111A,
-                quarter_gains=quarter_gains,
-                purchase_dates=("2023-01-05",) * len(QUARTER_SALE_DATES),
-            )
-        },
+        SectionDataMap(
+            {
+                SectionType.SECTION_111A: build_section_sales(
+                    SectionType.SECTION_111A,
+                    quarter_gains=quarter_gains,
+                    purchase_dates=("2023-01-05",) * len(QUARTER_SALE_DATES),
+                )
+            }
+        ),
         str(tmp_path),
     )
     return str(tmp_path / asset_aggregator.CAPITAL_GAIN_SUMMARY_OUTPUT_FILE_NAME)

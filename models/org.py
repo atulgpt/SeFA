@@ -10,10 +10,9 @@ class Organization:
     nature: str
     zip_code: str
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         assert "," not in self.name, (
-            "Organization name must not contain a ','."
-            + f" Found name = {self.name}"
+            "Organization name must not contain a ','." + f" Found name = {self.name}"
         )
         assert "," not in self.address, (
             "Organization address must not contain a ','."

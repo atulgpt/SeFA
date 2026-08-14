@@ -4,11 +4,12 @@ import typing as t
 from itertools import groupby
 import operator
 
+from utils.date_utils import CalendarMode
 from utils import date_utils, share_data_utils, file_utils
 from utils.ticker_mapping import ticker_org_info, ticker_currency_info
 from utils.rates import rbi_rates_utils
 from models.transaction import Transaction, TransactionWithTicker, Price
-from models.itr.faa3 import FAA3
+from models.itr.faa3 import FAA3, FAA3_CSV_HEADER_COLUMNS, FAA3CsvEntries
 from models.section_type import SectionType
 from models.section_data import SectionDataMap
 
@@ -20,29 +21,14 @@ RAW_FOLDER_NAME = "etrade"
 RAW_FA_ENTRIES_FILE_NAME_FORMAT = "fa_raw_{operation_mode}_entries.json"
 RAW_FA_ENTRIES_CSV_FILE_NAME_FORMAT = "fa_raw_{operation_mode}_entries.csv"
 
-FA_ENTRIES_COLUMNS = [
-    "Country/Region name",
-    "Country Name and Code",
-    "Name of entity",
-    "Address of entity",
-    "ZIP Code",
-    "Nature of entity",
-    "Date of acquiring the interest",
-    "Initial value of the investment",
-    "Peak value of investment during the Period",
-    "Closing balance",
-    "Total gross amount paid/credited with respect to the holding during the period",
-    "Total gross proceeds from sale or redemption of investment during the period",
-]
-
 
 def parse_org_purchases(
     ticker: str,
-    calendar_mode: str,
+    calendar_mode: CalendarMode,
     purchases: t.List[TransactionWithTicker],
     assessment_year: int,
     output_folder_abs_path: str,
-):
+) -> t.List[FAA3]:
     start_time_in_ms, end_time_in_ms = date_utils.calendar_range(
         calendar_mode, assessment_year
     )
@@ -137,31 +123,14 @@ def parse_org_purchases(
     return fa_entries
 
 
-def __rows(fa_entries: t.List[FAA3]):
-    return map(
-        lambda entry: (
-            entry.org.country_name,
-            entry.org.country_code,
-            entry.org.name,
-            entry.org.address,
-            entry.org.zip_code,
-            entry.org.nature,
-            # ref https://www.reddit.com/r/IndiaTax/comments/1mhbi0w/a3_template_commonerrorscsv_row_skip_any_idea/
-            date_utils.format_time(entry.purchase_date["time_in_millis"], "%Y-%m-%d"),
-            round(entry.purchase_price),
-            round(entry.peak_price),
-            round(entry.closing_price),
-            round(entry.gross_amount_paid),
-            round(entry.gross_sale_proceeds),
-        ),
-        fa_entries,
-    )
+def __rows(fa_entries: t.List[FAA3]) -> t.Iterator[FAA3CsvEntries]:
+    return (entry.as_csv_entries() for entry in fa_entries)
 
 
 def write_fa_entries(
     fa_entries: t.List[FAA3],
     output_folder_abs_path: str,
-):
+) -> None:
     """
     The schedule FA under section A3 upload, holding the entries of every source
     and every ticker of the run
@@ -169,7 +138,7 @@ def write_fa_entries(
     file_utils.write_csv_to_file(
         output_folder_abs_path,
         FA_ENTRIES_OUTPUT_FILE_NAME,
-        FA_ENTRIES_COLUMNS,
+        FAA3_CSV_HEADER_COLUMNS,
         __rows(fa_entries),
         True,
         print_path_to_console=True,
@@ -179,7 +148,7 @@ def write_fa_entries(
 
 def parse(
     operation_mode: str,
-    calendar_mode: str,
+    calendar_mode: CalendarMode,
     purchases: t.List[TransactionWithTicker],
     assessment_year: int,
     output_folder_abs_path: str,
@@ -214,10 +183,10 @@ def parse(
     file_utils.write_csv_to_file(
         raw_folder_abs_path,
         RAW_FA_ENTRIES_CSV_FILE_NAME_FORMAT.format(operation_mode=operation_mode),
-        FA_ENTRIES_COLUMNS,
+        FAA3_CSV_HEADER_COLUMNS,
         __rows(fa_entries),
         True,
         print_path_to_console=True,
         data_quoting=csv.QUOTE_NONE,
     )
-    return {SectionType.SCHEDULE_FA_A3: fa_entries}
+    return SectionDataMap({SectionType.SCHEDULE_FA_A3: list(fa_entries)})
