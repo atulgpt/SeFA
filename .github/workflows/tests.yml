@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # the parsers use a nested quote f-string, which is PEP 701 and so 3.12 onwards
+        # 3.12 is the minimum `requires-python` declares
         python-version: ["3.12", "3.13"]
 
     steps:
