@@ -52,3 +52,31 @@ jobs:
 
       - name: Type check
         run: python -m mypy
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          # pylint resolves the imports of what it reads, so it needs the project
+          # installed and what the tests import
+          python -m pip install -e ".[test,lint]"
+
+      - name: Format
+        run: python -m black --check --diff .
+
+      - name: Lint
+        run: >
+          python -m pylint
+          aggregator models parser utils tests
+          run.py refresh_historic_data.py refresh_rbi_rates.py

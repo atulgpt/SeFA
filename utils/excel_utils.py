@@ -5,6 +5,9 @@ from operator import attrgetter
 
 from utils.runtime_utils import warn_missing_module
 
+# `warn_missing_module` names a missing dependency before importing it fails, which
+# leaves every import below it reading as out of position and out of order
+# pylint: disable=wrong-import-position,wrong-import-order
 warn_missing_module("pandas")
 import pandas as pd
 import typing as t

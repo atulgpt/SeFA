@@ -42,6 +42,7 @@ def __fetch_month_end_rates(
     """Return an ordered list of (datetime, rate) for the last FBIL business day
     of each month in [start, end), as INR per 1 unit of `currency`."""
     warn_missing_module("requests")
+    # pylint: disable-next=import-outside-toplevel
     import requests
 
     resp = requests.get(
@@ -78,6 +79,7 @@ def __read_existing(rates_path: str) -> Sequence[t.List[t.Any]]:
     if not os.path.exists(rates_path):
         return []
     warn_missing_module("pandas")
+    # pylint: disable-next=import-outside-toplevel
     import pandas as pd
 
     with pd.ExcelFile(rates_path, engine="openpyxl") as xl:
@@ -91,6 +93,7 @@ def __read_existing(rates_path: str) -> Sequence[t.List[t.Any]]:
 
 def __write(rates_path: str, rows: Sequence[list[t.Any]]) -> None:
     warn_missing_module("openpyxl")
+    # pylint: disable-next=import-outside-toplevel
     from openpyxl import Workbook
 
     wb = Workbook()

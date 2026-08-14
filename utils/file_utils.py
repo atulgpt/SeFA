@@ -4,6 +4,8 @@ import csv
 import typing as t
 from collections.abc import Iterable
 
+from utils.runtime_utils import warn_missing_module
+
 if t.TYPE_CHECKING:
     # `csv` re-exports this from `_csv` without naming it, so it is only reachable
     # from the private module, and only ever exists in the stubs
@@ -106,10 +108,10 @@ def write_excel_sheets_to_file(
     Writes one workbook holding a `(sheet name, keys, objs)` triple per sheet, each
     sheet carrying its own set of keys
     """
-    from utils.runtime_utils import warn_missing_module
-
     warn_missing_module("pandas")
     warn_missing_module("openpyxl")
+    # only a workbook write needs pandas, so importing this module does not
+    # pylint: disable-next=import-outside-toplevel
     import pandas as pd
 
     final_file_abs_path = __resolve_file_path(

@@ -14,6 +14,12 @@ from models.asset_sale import AssetSale
 from models.section_type import CAPITAL_GAIN_SECTION_TYPES, SectionType
 from models.section_data import SectionDataMap
 from models.itr.faa3 import FAA3
+
+# This project's own `parser` package carries the name of a stdlib module, so its
+# imports are ordered as though they were standard ones. `warn_missing_module` also
+# names a missing dependency before importing it fails, which leaves every import
+# below it reading as out of position
+# pylint: disable=wrong-import-position,wrong-import-order
 from parser.itr import faa3_parser
 
 warn_missing_module("pandas")

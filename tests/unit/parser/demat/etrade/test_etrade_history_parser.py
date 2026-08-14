@@ -1,15 +1,16 @@
 from unittest.mock import patch
 import pytest
 
+# the project's own `parser` package carries the name of a stdlib module, so its
+# imports are ordered as though they were standard ones
+# pylint: disable-next=wrong-import-order
 from parser.demat.etrade import etrade_benefit_history_parser
 from utils import date_utils
 
 
 @patch("pandas.read_excel")
-@pytest.mark.skip(
-    reason="need to abstract out the ExcelFile creation for \
-        testing o/w it gives File not found error"
-)
+@pytest.mark.skip(reason="need to abstract out the ExcelFile creation for \
+        testing o/w it gives File not found error")
 def test_returns_correct_purchases_summing_espp_and_rsu(
     mock_read_excel,
     benefit_history_excel_file_with_vested_and_released_espp,

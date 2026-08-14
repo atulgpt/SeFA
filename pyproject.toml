@@ -17,6 +17,12 @@ dependencies = [
 test = [
     "pytest~=9.1",
 ]
+# black is pinned exact: a release reformats source that did not change, which
+# turns the check red on an unrelated pull request
+lint = [
+    "black==26.5.1",
+    "pylint~=4.0.7",
+]
 typecheck = [
     "mypy~=2.3.0",
     "pandas-stubs==3.0.5.260730",
@@ -34,15 +40,31 @@ include = ["aggregator*", "models*", "parser*", "utils*"]
 disable = [
     "missing-docstring", # Disable missing docstring warnings
     "missing-module-docstring",
-    "wrong-import-order",
-    "wrong-import-position"
+
+    # black owns the layout, and it cannot split a long string. A sheet label or a
+    # section A3 column heading is stated whole rather than wrapped
+    "line-too-long",
+
+    # this project's own `parser` package shadows the stdlib module of that name,
+    # which was removed in 3.10. Every import of a parser reads as deprecated
+    "deprecated-module",
+
+    # a report is read with the source, the mode, the bounds and the output folder
+    # in hand, and a filed row states every figure the schedule asks for
+    "too-many-arguments",
+    "too-many-positional-arguments",
+    "too-many-locals",
+    "too-many-instance-attributes",
+    "too-few-public-methods",
+
+    # the refresh scripts each state their own argparse block, which is the point
+    "duplicate-code",
+
+    "fixme",
 ]
 
 # Set the maximum number of characters on a single line
 max-line-length = 100
-
-# Set the maximum number of arguments for a function/method
-max-args = 5
 
 # Disable full report
 reports = false

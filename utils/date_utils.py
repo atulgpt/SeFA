@@ -6,14 +6,14 @@ ONE_DAY_IN_MS = 24 * 60 * 60 * 1000
 DateBoundsInMs = t.Tuple[t.Optional[int], t.Optional[int]]
 
 
-def is_in_bounds(x: int, boundsInMs: t.Optional[DateBoundsInMs]) -> bool:
-    if boundsInMs is None:
+def is_in_bounds(x: int, bounds_in_ms: t.Optional[DateBoundsInMs]) -> bool:
+    if bounds_in_ms is None:
         return True
     assert (
-        isinstance(boundsInMs, tuple) and len(boundsInMs) == 2
-    ), f"bounds must be a 2-tuple, found {type(boundsInMs)} len = {len(boundsInMs)}"
+        isinstance(bounds_in_ms, tuple) and len(bounds_in_ms) == 2
+    ), f"bounds must be a 2-tuple, found {type(bounds_in_ms)} len = {len(bounds_in_ms)}"
     assert isinstance(x, int), f"Provided value x = {x} is of non int type = {type(x)}"
-    start, end = boundsInMs
+    start, end = bounds_in_ms
     if start is not None and x < start:
         return False
     if end is not None and x > end:
@@ -99,10 +99,9 @@ def last_work_day_in_ms(time_in_ms: int) -> int:
     weekday = dt.weekday()
     if weekday == 5:
         return epoch_in_ms(dt - timedelta(days=1))
-    elif weekday == 6:
+    if weekday == 6:
         return epoch_in_ms(dt - timedelta(days=2))
-    else:
-        return time_in_ms
+    return time_in_ms
 
 
 CalendarMode = t.Literal["calendar", "financial"]

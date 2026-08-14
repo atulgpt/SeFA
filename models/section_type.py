@@ -21,7 +21,6 @@ class SectionType(enum.StrEnum):
     SCHEDULE_FA_A3 = "fa_a3"
 
 
-
 # the sections holding an AssetSale, i.e. everything the capital gain reports cover
 CAPITAL_GAIN_SECTION_TYPES = tuple(
     section_type

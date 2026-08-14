@@ -7,11 +7,14 @@ See [conftest.py](https://docs.pytest.org/en/stable/reference/fixtures.html#conf
 
 import time
 import typing as t
-
-import pandas as pd
 from unittest.mock import MagicMock
 
+import pandas as pd
 import pytest
+
+# the project's own `parser` package carries the name of a stdlib module, so its
+# imports are ordered as though they were standard ones
+# pylint: disable-next=wrong-import-order
 from parser.demat.etrade import etrade_benefit_history_parser
 from utils import date_utils
 

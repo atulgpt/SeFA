@@ -7,16 +7,13 @@ import typing as t
 from datetime import date, timedelta
 
 from parser.demat.etrade import etrade_benefit_history_parser
-from utils import logger, date_utils
 from parser.demat.etrade import etrade_holdings_bystatus_parser
 from parser.demat.indmoney import indmoney_us_stocks_parser
 from parser.demat.groww import groww_indian_mf_parser, groww_indian_stocks_parser
 from parser.demat.sale_operation_parser import SaleOperationParser
-from models.asset_sale import AssetSale
-from models.section_type import SectionType
 from models.section_data import SectionDataMap
-from parser.itr import faa3_parser
 from aggregator import asset_aggregator
+from utils import logger, date_utils
 from utils.ticker_mapping import ticker_currency_info, ticker_org_info
 from refresh_historic_data import refresh, DEFAULT_START
 import refresh_rbi_rates
@@ -224,6 +221,9 @@ def refresh_historic_data() -> None:
                 f"Skipping share price refresh for {ticker} ({err}); using bundled "
                 "historic data. Pass --skip-refresh to suppress this."
             )
+        # a refresh reaches the network and the parsers, so it falls back to the
+        # bundled data whatever the source raised
+        # pylint: disable-next=broad-exception-caught
         except Exception as err:
             logger.log(
                 f"Could not refresh share prices for {ticker} ({err}); "
@@ -247,6 +247,9 @@ def refresh_historic_data() -> None:
                 f"Skipping reference rate refresh ({err}); using bundled rates. "
                 "Pass --skip-refresh to suppress this."
             )
+        # a refresh reaches the network and the parsers, so it falls back to the
+        # bundled data whatever the source raised
+        # pylint: disable-next=broad-exception-caught
         except Exception as err:
             logger.log(
                 f"Could not refresh reference rates ({err}); using bundled rates."

@@ -1,5 +1,8 @@
 from utils.runtime_utils import warn_missing_module
 
+# `warn_missing_module` names a missing dependency before importing it fails, which
+# leaves every import below it reading as out of position and out of order
+# pylint: disable=wrong-import-position,wrong-import-order
 warn_missing_module("pandas")
 import pandas as pd
 import os
@@ -102,6 +105,9 @@ def get_fmv(ticker: str, purchase_time_in_ms: int) -> float:
             if entry_time_in_ms > purchase_time_in_ms:
                 if previous_entry_data is None:
                     raise ValueError("previous_entry_data is None, expected TimedFmv")
+                # the raise above rules None out, but the name is also assigned in
+                # the loop, so pylint keeps None among its values whatever guards it
+                # pylint: disable-next=unsubscriptable-object
                 previous_entry_time_in_ms = previous_entry_data["entry_time_in_millis"]
                 __validate_dates(
                     previous_entry_time_in_ms, purchase_time_in_ms, entry_time_in_ms

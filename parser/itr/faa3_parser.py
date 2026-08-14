@@ -8,7 +8,7 @@ from utils.date_utils import CalendarMode
 from utils import date_utils, share_data_utils, file_utils
 from utils.ticker_mapping import ticker_org_info, ticker_currency_info
 from utils.rates import rbi_rates_utils
-from models.transaction import Transaction, TransactionWithTicker, Price
+from models.transaction import TransactionWithTicker
 from models.itr.faa3 import FAA3, FAA3_CSV_HEADER_COLUMNS, FAA3CsvEntries
 from models.section_type import SectionType
 from models.section_data import SectionDataMap
@@ -27,7 +27,6 @@ def parse_org_purchases(
     calendar_mode: CalendarMode,
     purchases: t.List[TransactionWithTicker],
     assessment_year: int,
-    output_folder_abs_path: str,
 ) -> t.List[FAA3]:
     start_time_in_ms, end_time_in_ms = date_utils.calendar_range(
         calendar_mode, assessment_year
@@ -167,7 +166,6 @@ def parse(
                 calendar_mode,
                 list(each_org_purchases),
                 assessment_year,
-                output_folder_abs_path,
             )
         )
 
