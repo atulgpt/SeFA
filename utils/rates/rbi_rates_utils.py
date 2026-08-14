@@ -2,6 +2,9 @@ from dataclasses import dataclass
 import os
 from utils.runtime_utils import warn_missing_module
 
+# `warn_missing_module` names a missing dependency before importing it fails, which
+# leaves every import below it reading as out of position and out of order
+# pylint: disable=wrong-import-position,wrong-import-order
 warn_missing_module("pandas")
 import pandas as pd
 from datetime import datetime
@@ -39,18 +42,18 @@ def __init_map(currency_code: str) -> RbiYearMonthRateMap:
                     if (
                         rate_time.year not in currency_rate_map
                         or rate_time.month not in currency_rate_map[rate_time.year]
-                        or currency_rate_map[rate_time.year][rate_time.month][
-                            "time_in_millis"
-                        ]
+                        or currency_rate_map[rate_time.year][
+                            rate_time.month
+                        ].time_in_millis
                         < date_utils.epoch_in_ms(rate_time)
                     ):
                         currency_rate_map[rate_time.year] = currency_rate_map.get(
                             rate_time.year, {}
                         )
-                        currency_rate_map[rate_time.year][rate_time.month] = {
-                            "time_in_millis": date_utils.epoch_in_ms(rate_time),
-                            "rate": data["Rate"],
-                        }
+                        currency_rate_map[rate_time.year][rate_time.month] = RbiRateObj(
+                            time_in_millis=date_utils.epoch_in_ms(rate_time),
+                            rate=data["Rate"],
+                        )
 
             rate_map_cache[currency_code] = currency_rate_map
 
@@ -69,7 +72,7 @@ def get_rate_at_month(currency_code: str, month: int, year: int) -> float:
             f"No rbi data for currency code {currency_code} in {RATES_FILE_ABS_PATH} \
 for month {month}/{year}"
         )
-    return rbi_month_rate_map[month]["rate"]
+    return rbi_month_rate_map[month].rate
 
 
 def get_rate_for_prev_mon_for_time_in_ms(currency_code: str, time_in_ms: int) -> float:

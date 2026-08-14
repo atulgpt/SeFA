@@ -2,7 +2,13 @@ import re
 
 from utils.runtime_utils import warn_missing_module
 from utils import logger, date_utils
-from utils.excel_utils import EMPTY_CELL_MARKER, cell_text, optional_cell_text, to_float
+from utils.excel_utils import (
+    EMPTY_CELL_MARKER,
+    cell_text,
+    optional_cell_text,
+    assert_sheet_names,
+    to_float,
+)
 from utils.rates import rbi_rates_utils
 from models.transaction import Transaction, Price
 from models.asset_sale import (
@@ -105,7 +111,7 @@ LOSSES_MARKER = "Losses"
 TOTAL_MARKER = "Total"
 
 
-def __parse_date(value) -> date_utils.DateObj:
+def __parse_date(value: t.Any) -> date_utils.DateObj:
     """
     Redemption/purchase dates come either as an ISO string or as a datetime when
     the cell is stored as a real date in the workbook
@@ -146,7 +152,7 @@ def __build_column_map(
                 continue
             key = f"{current_main} | {str(sub_value).strip()}"
         elif pd.notna(main_value) and str(main_value).strip() != "":
-            key = current_main
+            key = str(main_value).strip()
         else:
             continue
         if key not in column_map:
@@ -154,7 +160,7 @@ def __build_column_map(
     return column_map
 
 
-def __is_data_row(name_value) -> bool:
+def __is_data_row(name_value: t.Any) -> bool:
     if not isinstance(name_value, str):
         return False
     name = name_value.strip()
@@ -193,7 +199,7 @@ def __section_type(sheet_name: str) -> SectionType:
 def __parse_row(
     data: pd.Series, column_map: t.Dict[str, int], section_type: SectionType
 ) -> AssetSale:
-    def cell(key: t.Tuple[str, ...]):
+    def cell(key: t.Tuple[str, ...]) -> t.Any:
         column_index = __column_index(column_map, key)
         if column_index is None:
             return None
@@ -325,7 +331,7 @@ def __parse_fa_sheet(xl: pd.ExcelFile, sheet_name: str) -> t.List[FAA3]:
     for row_index in range(header_row_index + 1, len(sheet_pd)):
         data = sheet_pd.iloc[row_index]
 
-        def cell(header: str):
+        def cell(header: str) -> t.Any:
             return data.iloc[column_map[header]]
 
         if optional_cell_text(cell(FA_ENTITY_NAME_HEADER)) == "":
@@ -362,15 +368,15 @@ def parse(
     sales: t.List[AssetSale] = []
     fa_entries: t.List[FAA3] = []
     with pd.ExcelFile(input_file_abs_path, engine="openpyxl") as xl:
-        sheet_names = xl.sheet_names
-        logger.log(f"Total sheets present {sheet_names}")
+        workbook_sheet_names = assert_sheet_names(xl)
+        logger.log(f"Total sheets present {workbook_sheet_names}")
         # dict keys keep the short term before long term ordering while dropping a
         # sheet that happens to match both patterns from being parsed twice
         parsable_sheet_names = list(
             dict.fromkeys(
                 sheet_name
                 for pattern in SUPPORTED_SHEET_NAME_PATTERNS
-                for sheet_name in sheet_names
+                for sheet_name in workbook_sheet_names
                 if pattern.search(sheet_name)
             )
         )
@@ -381,7 +387,7 @@ def parse(
         for sheet_name in parsable_sheet_names:
             sales.extend(parse_sheet(xl, sheet_name, time_bounds_in_ms))
 
-        for sheet_name in sheet_names:
+        for sheet_name in workbook_sheet_names:
             if FA_SHEET_NAME_PATTERN.search(sheet_name):
                 fa_entries.extend(__parse_fa_sheet(xl, sheet_name))
 
@@ -394,9 +400,9 @@ def parse(
         + f", schedule FA entries = {len(fa_entries)}"
     )
 
-    sections: SectionDataMap = {}
+    sections: SectionDataMap = SectionDataMap()
     for sale in sales:
         sections.setdefault(sale.section_type, []).append(sale)
     if fa_entries:
-        sections[SectionType.SCHEDULE_FA_A3] = fa_entries
+        sections[SectionType.SCHEDULE_FA_A3] = list(fa_entries)
     return sections

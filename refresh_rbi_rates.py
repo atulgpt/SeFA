@@ -18,6 +18,8 @@ import argparse
 import os
 import sys
 from datetime import date, datetime
+import typing as t
+from collections.abc import Sequence
 
 from utils.rates.constants import RATES_FILE_ABS_PATH, RATES_SHEET_NAME
 from utils.runtime_utils import warn_missing_module
@@ -34,10 +36,13 @@ FRANKFURTER_URL = "https://api.frankfurter.dev/v2/rates"
 QUOTE_CURRENCY = "INR"
 
 
-def __fetch_month_end_rates(currency: str, start: str, end: str):
+def __fetch_month_end_rates(
+    currency: str, start: str, end: str
+) -> Sequence[tuple[datetime, float]]:
     """Return an ordered list of (datetime, rate) for the last FBIL business day
     of each month in [start, end), as INR per 1 unit of `currency`."""
     warn_missing_module("requests")
+    # pylint: disable-next=import-outside-toplevel
     import requests
 
     resp = requests.get(
@@ -68,12 +73,13 @@ def __fetch_month_end_rates(currency: str, start: str, end: str):
     return list(month_end.values())
 
 
-def __read_existing(rates_path: str):
+def __read_existing(rates_path: str) -> Sequence[t.List[t.Any]]:
     """Return existing data rows (list of COLUMNS-ordered lists), or [] if the
     file is missing or unreadable."""
     if not os.path.exists(rates_path):
         return []
     warn_missing_module("pandas")
+    # pylint: disable-next=import-outside-toplevel
     import pandas as pd
 
     with pd.ExcelFile(rates_path, engine="openpyxl") as xl:
@@ -85,20 +91,26 @@ def __read_existing(rates_path: str):
     ]
 
 
-def __write(rates_path: str, rows):
+def __write(rates_path: str, rows: Sequence[list[t.Any]]) -> None:
     warn_missing_module("openpyxl")
+    # pylint: disable-next=import-outside-toplevel
     from openpyxl import Workbook
 
     wb = Workbook()
     ws = wb.active
-    ws.title = RATES_SHEET_NAME
-    for title in TITLE_ROWS:
-        ws.append([title])
-    ws.append(COLUMNS)
-    for row in rows:
-        ws.append(row)
+    if ws:
+        ws.title = RATES_SHEET_NAME
+        for title in TITLE_ROWS:
+            ws.append([title])
+        ws.append(COLUMNS)
+        for row in rows:
+            ws.append(row)
 
-    wb.save(rates_path)
+        wb.save(rates_path)
+    else:
+        raise ValueError(
+            "active workbook returned None when writing the refreshed rates"
+        )
 
 
 def refresh(
@@ -135,7 +147,7 @@ def refresh(
     return rates_path
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Refresh RBI/FBIL reference rate xlsx from Frankfurter (FBIL)"
     )

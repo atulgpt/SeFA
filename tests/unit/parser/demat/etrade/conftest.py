@@ -6,11 +6,15 @@ See [conftest.py](https://docs.pytest.org/en/stable/reference/fixtures.html#conf
 """
 
 import time
-
-import pandas as pd
+import typing as t
 from unittest.mock import MagicMock
 
+import pandas as pd
 import pytest
+
+# the project's own `parser` package carries the name of a stdlib module, so its
+# imports are ordered as though they were standard ones
+# pylint: disable-next=wrong-import-order
 from parser.demat.etrade import etrade_benefit_history_parser
 from utils import date_utils
 
@@ -98,7 +102,7 @@ def fixture_benefit_history_excel_file_with_espp_and_rsu():
     )
 
 
-def create_benefit_history_mock(data_frame_dict: dict) -> MagicMock:
+def create_benefit_history_mock(data_frame_dict: t.Dict[str, t.Any]) -> MagicMock:
     mock_excel_file = MagicMock(spec=pd.ExcelFile)
 
     def parse(sheet_name: str, skiprows: int, header: int):

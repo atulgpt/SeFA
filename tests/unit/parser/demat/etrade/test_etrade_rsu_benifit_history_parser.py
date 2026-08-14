@@ -1,6 +1,10 @@
 import pytest
-from parser.demat.etrade import etrade_benefit_history_parser
 import pandas as pd
+
+# the project's own `parser` package carries the name of a stdlib module, so its
+# imports are ordered as though they were standard ones
+# pylint: disable-next=wrong-import-order
+from parser.demat.etrade import etrade_benefit_history_parser
 
 from tests.unit.parser.demat.etrade.conftest import create_rsu_mock
 from utils import date_utils
@@ -57,20 +61,22 @@ def test_wrong_rsu_sheet_without_grant(
 
 def test_rsu_row_without_no_released_share():
     rsu_purchase = etrade_benefit_history_parser.parse_rsu_row(
-        {"Event Type": "Random event type"}, "ADBE"
+        pd.Series({"Event Type": "Random event type"}), "ADBE"
     )
     assert rsu_purchase is None
 
 
 def test_rsu_row_with_released_share():
     rsu_purchase = etrade_benefit_history_parser.parse_rsu_row(
-        {
-            "Record Type": "Event",
-            "Symbol": "",
-            "Event Type": "Shares released",
-            "Date": "10/15/2023",
-            "Qty. or Amount": 0.5,
-        },
+        pd.Series(
+            {
+                "Record Type": "Event",
+                "Symbol": "",
+                "Event Type": "Shares released",
+                "Date": "10/15/2023",
+                "Qty. or Amount": 0.5,
+            }
+        ),
         "ADBE",
     )
 

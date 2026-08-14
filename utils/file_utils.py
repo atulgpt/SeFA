@@ -2,7 +2,14 @@ import os
 import json
 import csv
 import typing as t
+from collections.abc import Iterable
 
+from utils.runtime_utils import warn_missing_module
+
+if t.TYPE_CHECKING:
+    # `csv` re-exports this from `_csv` without naming it, so it is only reachable
+    # from the private module, and only ever exists in the stubs
+    from _csv import _QuotingType
 
 # A raw file backs the figures that are filed rather than being filed itself, so it
 # sits one level under the output folder instead of beside the filed ones
@@ -10,7 +17,7 @@ RAW_OUTPUT_FOLDER_NAME = "raw"
 
 
 class MapEncoder(json.JSONEncoder):
-    def default(self, o):
+    def default(self: json.JSONEncoder, o: t.Any) -> t.Any:
         if isinstance(o, map):
             return list(o)
         return json.JSONEncoder.default(self, o)
@@ -41,7 +48,7 @@ def __resolve_file_path(
 def write_to_file(
     output_folder_abs_path: str,
     file_name: str,
-    obj,
+    obj: t.Any,
     override: bool,
     is_raw: bool = False,
     print_path_to_console: bool = False,
@@ -70,11 +77,11 @@ def write_csv_to_file(
     output_folder_abs_path: str,
     file_name: str,
     keys: t.List[str],
-    objs,
+    objs: Iterable[Iterable[t.Any]],
     override: bool,
     is_raw: bool = False,
     print_path_to_console: bool = False,
-    data_quoting: int = csv.QUOTE_MINIMAL,
+    data_quoting: "_QuotingType" = csv.QUOTE_MINIMAL,
 ) -> str:
     final_file_abs_path = __resolve_file_path(
         output_folder_abs_path, file_name, is_raw, override
@@ -101,10 +108,10 @@ def write_excel_sheets_to_file(
     Writes one workbook holding a `(sheet name, keys, objs)` triple per sheet, each
     sheet carrying its own set of keys
     """
-    from utils.runtime_utils import warn_missing_module
-
     warn_missing_module("pandas")
     warn_missing_module("openpyxl")
+    # only a workbook write needs pandas, so importing this module does not
+    # pylint: disable-next=import-outside-toplevel
     import pandas as pd
 
     final_file_abs_path = __resolve_file_path(
@@ -120,5 +127,5 @@ def write_excel_sheets_to_file(
     return final_file_abs_path
 
 
-def __print_file_path(final_path: str):
+def __print_file_path(final_path: str) -> None:
     print(f"Output file created at {final_path}")

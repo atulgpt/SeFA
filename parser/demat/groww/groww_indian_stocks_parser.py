@@ -1,6 +1,11 @@
 from utils.runtime_utils import warn_missing_module
 from utils import logger, date_utils
-from utils.excel_utils import cell_text, optional_cell_text, to_float
+from utils.excel_utils import (
+    cell_text,
+    optional_cell_text,
+    assert_sheet_names,
+    to_float,
+)
 from models.transaction import Transaction, Price
 from models.asset_sale import (
     AssetSale,
@@ -148,7 +153,7 @@ def __parse_row(
     column_map: t.Dict[str, int],
     section_types: t.Tuple[SectionType, SectionType],
 ) -> AssetSale:
-    def cell(header: str):
+    def cell(header: str) -> t.Any:
         return data.iloc[column_map[header]]
 
     quantity = to_float(cell(QUANTITY_HEADER))
@@ -244,7 +249,9 @@ def parse_sheet(
         section_types = BLOCK_SECTION_TYPES.get(label)
         if section_types is None:
             continue
-        sales.extend(__parse_block(sheet_pd, row_index, section_types, time_bounds_in_ms))
+        sales.extend(
+            __parse_block(sheet_pd, row_index, section_types, time_bounds_in_ms)
+        )
     return sales, __parse_charges(sheet_pd)
 
 
@@ -256,14 +263,15 @@ def parse(
     sales: t.List[AssetSale] = []
     deductible_charges: t.Optional[float] = None
     with pd.ExcelFile(input_file_abs_path, engine="openpyxl") as xl:
-        logger.log(f"Total sheets present {xl.sheet_names}")
-        for sheet_name in xl.sheet_names:
+        workbook_sheet_names = assert_sheet_names(xl)
+        logger.log(f"Total sheets present {workbook_sheet_names}")
+        for sheet_name in workbook_sheet_names:
             sheet_sales, sheet_charges = parse_sheet(xl, sheet_name, time_bounds_in_ms)
             sales.extend(sheet_sales)
             if sheet_charges is not None:
                 assert deductible_charges is None, (
                     f"More than one {CHARGES_BLOCK_LABEL} block is present across"
-                    f" the sheets {xl.sheet_names}"
+                    f" the sheets {workbook_sheet_names}"
                 )
                 deductible_charges = sheet_charges
 
@@ -285,7 +293,7 @@ def parse(
         + f"{round(sum(map(lambda sale: sale.gains.price, sales)), 2)}"
     )
 
-    sections: SectionDataMap = {}
+    sections: SectionDataMap = SectionDataMap()
     for sale in sales:
         sections.setdefault(sale.section_type, []).append(sale)
     return sections

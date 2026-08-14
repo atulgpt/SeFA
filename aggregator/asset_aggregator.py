@@ -13,11 +13,19 @@ from models.transaction import Transaction
 from models.asset_sale import AssetSale
 from models.section_type import CAPITAL_GAIN_SECTION_TYPES, SectionType
 from models.section_data import SectionDataMap
+from models.itr.faa3 import FAA3
+
+# This project's own `parser` package carries the name of a stdlib module, so its
+# imports are ordered as though they were standard ones. `warn_missing_module` also
+# names a missing dependency before importing it fails, which leaves every import
+# below it reading as out of position
+# pylint: disable=wrong-import-position,wrong-import-order
 from parser.itr import faa3_parser
 
 warn_missing_module("pandas")
 warn_missing_module("openpyxl")
 import typing as t
+from collections.abc import Sequence, Mapping
 
 DEBUG = False
 
@@ -400,9 +408,9 @@ def __build_quarter_sheet(
 
 def __write_summary(
     output_folder_abs_path: str,
-    section_types: t.List[SectionType],
-    section_sales: t.Dict[str, t.List[AssetSale]],
-    section_totals: t.Dict[str, t.Dict[str, int]],
+    section_types: Sequence[SectionType],
+    section_sales: Mapping[str, t.List[AssetSale]],
+    section_totals: Mapping[str, t.Dict[str, int]],
 ) -> None:
     """
     The figures that go on the return: one row per schedule CG section, then a sheet
@@ -511,15 +519,13 @@ def parse(
     """
     logger.DEBUG = DEBUG
 
-    fa_entries = sections.get(SectionType.SCHEDULE_FA_A3, [])
+    fa_entries = sections.get_rows_asserting([SectionType.SCHEDULE_FA_A3], FAA3)
     if fa_entries:
         faa3_parser.write_fa_entries(fa_entries, output_folder_abs_path)
 
-    sales: t.List[AssetSale] = [
-        sale
-        for section_type in CAPITAL_GAIN_SECTION_TYPES
-        for sale in sections.get(section_type, [])
-    ]
+    sales: Sequence[AssetSale] = sections.get_rows_asserting(
+        CAPITAL_GAIN_SECTION_TYPES, AssetSale
+    )
     if not sales:
         logger.log("No capital gain section present, nothing further to write")
         return

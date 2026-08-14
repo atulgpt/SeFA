@@ -10,6 +10,7 @@ this script flattens the columns and reformats the date before writing.
 import argparse
 import os
 import sys
+from datetime import date, timedelta
 
 from utils.runtime_utils import warn_missing_module
 
@@ -22,6 +23,7 @@ def refresh(ticker: str, start: str, end: str) -> str:
     # Imported lazily so importing this module (e.g. from run.py) does not
     # require yfinance to be installed unless a refresh is actually requested.
     warn_missing_module("yfinance")
+    # pylint: disable-next=import-outside-toplevel
     import yfinance as yf
 
     df = yf.download(
@@ -46,9 +48,7 @@ def refresh(ticker: str, start: str, end: str) -> str:
     return out_path
 
 
-def main():
-    from datetime import date, timedelta
-
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Refresh historic share price CSV from Yahoo Finance"
     )
