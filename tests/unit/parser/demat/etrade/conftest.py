@@ -45,6 +45,8 @@ def fixture_benefit_history_excel_file_with_vested_and_released_espp():
             "Record Type": ["Purchase", "Event", "Event"],
             "Symbol": ["ADBE", "", ""],
             "Purchase Date": ["30-JUN-2020", "", ""],
+            "Purchased Qty.": ["3", None, None],
+            "Net Shares": ["2", None, None],
             "Sellable Qty.": ["2", None, None],
             "Qty. or Amount": [None, 0.5, 0.5],
             "Purchase Date FMV": ["$435.31", None, None],
