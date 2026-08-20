@@ -3,12 +3,12 @@ import typing as t
 import pandas as pd
 import pytest
 
-from aggregator import asset_aggregator
-from models.asset_sale import NOT_APPLICABLE, AssetSale
-from models.section_data import SectionDataMap, SectionDataRow
-from models.section_type import SectionType
-from models.transaction import Price, Transaction
-from utils import date_utils
+from sefa.aggregator import asset_aggregator
+from sefa.models.asset_sale import NOT_APPLICABLE, AssetSale
+from sefa.models.section_data import SectionDataMap, SectionDataRow
+from sefa.models.section_type import SectionType
+from sefa.models.transaction import Price, Transaction
+from sefa.utils import date_utils
 
 # every leg is traded in the reporting currency, so no exchange rate is looked up and
 # the figures the sheets state are the ones the sales carry
