@@ -1,7 +1,7 @@
-from parser.demat.etrade import etrade_benefit_history_parser
+from sefa.parser.demat.etrade import etrade_benefit_history_parser
 import pandas as pd
 
-from utils import date_utils
+from sefa.utils import date_utils
 
 
 def test_espp_parsing_with_no_purchase(

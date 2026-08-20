@@ -1,6 +1,6 @@
 import pytest
 
-from models.org import Organization
+from sefa.models.org import Organization
 
 VALID_ORGANIZATION_FIELDS = {
     "country_name": "United States Of America",

@@ -15,8 +15,8 @@ import pytest
 # the project's own `parser` package carries the name of a stdlib module, so its
 # imports are ordered as though they were standard ones
 # pylint: disable-next=wrong-import-order
-from parser.demat.etrade import etrade_benefit_history_parser
-from utils import date_utils
+from sefa.parser.demat.etrade import etrade_benefit_history_parser
+from sefa.utils import date_utils
 
 
 @pytest.fixture(name="time_bounds_in_ms")

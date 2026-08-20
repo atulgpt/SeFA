@@ -5,6 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "SeFA"
 version = "0.0.1"
+authors = [{name = "Atul Gupta", email = "atlgpt17@gmail.com"}]
+readme = {file = "README.md", content-type = "text/markdown"}
+license = { text = "MIT" }
 # the parsers use nested-quote f-strings (PEP 701), which need 3.12
 requires-python = ">=3.12"
 dependencies = [
@@ -31,8 +34,12 @@ typecheck = [
     "types-requests==2.33.0.20260712",
 ]
 
+[project.urls]
+Repository = "https://github.com/atulgpt/SeFA.git"
+Issues = "https://github.com/atulgpt/SeFA/issues"
+
 [tool.setuptools.packages.find]
-include = ["aggregator*", "models*", "parser*", "utils*"]
+where = ["src"]
 
 [tool.pylint]
 # Configuration for Pylint
