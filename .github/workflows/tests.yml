@@ -77,6 +77,4 @@ jobs:
 
       - name: Lint
         run: >
-          python -m pylint
-          aggregator models parser utils tests
-          run.py refresh_historic_data.py refresh_rbi_rates.py
+          python -m pylint src tests
