@@ -85,7 +85,7 @@ can still run `refresh_historic_data.py` or `refresh_rbi_rates.py` manually.
 Inside the `output` folder(if nothing else is specified), the schedule FA modes write
 `fa_entries.csv`, the schedule FA under section A3 upload holding the entries of every source
 and every ticker of the run. Each source additionally writes its own workings under
-`raw/etrade/` as `fa_raw_<operation mode>_entries.csv`, `fa_raw_<operation mode>_entries.json` and
+`src/sefa/parser/demat/etrade/` as `fa_raw_<operation mode>_entries.csv`, `fa_raw_<operation mode>_entries.json` and
 `purchases_<operation mode>.json`, so a figure can be traced back to the source it came from.
 
 The realized sale modes write into the same folder:
