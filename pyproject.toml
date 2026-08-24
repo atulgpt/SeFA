@@ -40,9 +40,43 @@ Issues = "https://github.com/atulgpt/SeFA/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+[tool.setuptools.package-data]
+sefa = ["py.typed"]
+
+[tool.pytest]
+pythonpath = ["src"]
+testpaths = ["tests/unit"]
+strict = true
+minversion = "9.0"
+
+[tool.mypy]
+python_version = 3.12
+mypy_path = ["src"]
+files = ["src", "tests"]
+# `tests` carries no `__init__.py`, so a `conftest.py` maps both to a top level
+# `conftest` and to its path under `tests`. The repo root is the one package base
+explicit_package_bases = true
+strict = true
+
+# An error the report can be fixed from, without opening the parser
+pretty = true
+show_error_codes = true
+
+# yfinance ships no stubs and no py.typed marker
+[[tool.mypy.overrides]]
+module = ["yfinance.*"]
+ignore_missing_imports = true
+
+# A test is checked for the API it exercises, which is what catches a fixture built
+# the wrong shape. Annotating every test function and fixture adds no such signal,
+# and `check_untyped_defs` still reads the bodies
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
 
 [tool.pylint]
-# Configuration for Pylint
+source-roots = ["src", "tests"]
 
 # Disable specific messages
 disable = [

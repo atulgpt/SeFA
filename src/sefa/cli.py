@@ -23,7 +23,9 @@ from sefa.historic_data.rates.rbi import refresh_rbi_rates
 # arguments defaults
 script_path = os.path.realpath(os.path.dirname(__file__))
 DEFAULT_OUTPUT_FOLDER_NAME = "output"
-default_output_folder_abs_path = os.path.join(script_path, DEFAULT_OUTPUT_FOLDER_NAME)
+default_output_folder_abs_path = os.path.join(
+    os.path.dirname(os.path.dirname(script_path)), DEFAULT_OUTPUT_FOLDER_NAME
+)
 ETRADE_BENEFIT_HISTORY_OPERATION_MODE = "etrade_benefit_history"
 ETRADE_HOLDINGS_BYSTATUS_OPERATION_MODE = "etrade_holdings_bystatus"
 INDMONEY_US_STOCKS_OPERATION_MODE = "indmoney_us_stocks"
@@ -77,7 +79,16 @@ def __parse_inputs(inputs: t.List[str]) -> t.List[t.Tuple[str, str]]:
     return parsed_inputs
 
 
-def main(args: list[str]) -> None:
+class CliArgs(argparse.Namespace):
+    output_folder: str
+    inputs: t.List[str]
+    calendar_mode: t.Literal["calendar", "financial"]
+    assessment_year: int
+    debug: bool
+    skip_refresh: bool
+
+
+def main(argv: list[str]) -> None:
     parser = argparse.ArgumentParser(
         description="This is a Python module to generate Indian ITR schedule FA under section A3 automatically"
     )
@@ -146,7 +157,7 @@ def main(args: list[str]) -> None:
         "bundled historic_data CSVs instead (useful when offline)",
     )
 
-    args = parser.parse_args(args=args)
+    args = parser.parse_args(args=argv, namespace=CliArgs())
 
     logger.DEBUG = args.debug
     etrade_benefit_history_parser.DEBUG = args.debug
@@ -261,7 +272,7 @@ def refresh_historic_data() -> None:
 
 if __name__ == "__main__":
     try:
-        main()
+        main(sys.argv[1:])
     except KeyboardInterrupt:
         logger.log("Interrupt requested... exiting")
     sys.exit(0)
