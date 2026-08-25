@@ -1,5 +1,5 @@
-import sefa.cli as cli
 import sys
+from sefa import cli
 
 
 def main() -> None:

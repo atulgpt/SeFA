@@ -1,5 +1,8 @@
+import typing as t
+
+import pandas as pd
+
 from sefa.utils import date_utils
-from sefa.utils.runtime_utils import warn_missing_module
 from sefa.utils import logger
 from sefa.utils.excel_utils import (
     cell_text,
@@ -15,11 +18,6 @@ from sefa.models.asset_sale import (
 from sefa.models.section_type import SectionType
 from sefa.models.section_data import SectionDataMap
 from sefa.parser.demat.groww.constants import NON_EQUITY_LINKED_SHARES
-
-warn_missing_module("pandas")
-warn_missing_module("openpyxl")
-import pandas as pd
-import typing as t
 
 DEBUG = False
 

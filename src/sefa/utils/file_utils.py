@@ -4,7 +4,7 @@ import csv
 import typing as t
 from collections.abc import Iterable
 
-from sefa.utils.runtime_utils import warn_missing_module
+import pandas as pd
 
 if t.TYPE_CHECKING:
     # `csv` re-exports this from `_csv` without naming it, so it is only reachable
@@ -108,12 +108,6 @@ def write_excel_sheets_to_file(
     Writes one workbook holding a `(sheet name, keys, objs)` triple per sheet, each
     sheet carrying its own set of keys
     """
-    warn_missing_module("pandas")
-    warn_missing_module("openpyxl")
-    # only a workbook write needs pandas, so importing this module does not
-    # pylint: disable-next=import-outside-toplevel
-    import pandas as pd
-
     final_file_abs_path = __resolve_file_path(
         output_folder_abs_path, file_name, is_raw, override
     )

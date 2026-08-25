@@ -1,15 +1,9 @@
-from sefa.utils.runtime_utils import warn_missing_module
-
-from . import date_utils
-
-# `warn_missing_module` names a missing dependency before importing it fails, which
-# leaves every import below it reading as out of position and out of order
-# pylint: disable=wrong-import-position,wrong-import-order
-warn_missing_module("pandas")
-import pandas as pd
 import os
 import typing as t
 
+import pandas as pd
+
+from . import date_utils
 from . import logger
 from .ticker_mapping import ticker_currency_info
 from .rates import rbi_rates_utils

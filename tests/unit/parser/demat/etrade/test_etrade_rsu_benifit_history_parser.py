@@ -1,12 +1,11 @@
 import pytest
 import pandas as pd
 
-# the project's own `parser` package carries the name of a stdlib module, so its
-# imports are ordered as though they were standard ones
-# pylint: disable-next=wrong-import-order
-from sefa.parser.demat.etrade import etrade_benefit_history_parser
-
+# pytest and mypy resolve `tests` as a package base, while pylint's source-roots
+# names the same module without the `tests` prefix and cannot reach it
+# pylint: disable-next=import-error
 from tests.unit.parser.demat.etrade.conftest import create_rsu_mock
+from sefa.parser.demat.etrade import etrade_benefit_history_parser
 from sefa.utils import date_utils
 
 

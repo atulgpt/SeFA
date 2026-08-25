@@ -1,7 +1,9 @@
 import re
+import typing as t
+
+import pandas as pd
 
 from sefa.utils import date_utils
-from sefa.utils.runtime_utils import warn_missing_module
 from sefa.utils import logger
 from sefa.utils.excel_utils import (
     EMPTY_CELL_MARKER,
@@ -20,11 +22,6 @@ from sefa.models.section_type import SectionType
 from sefa.models.section_data import SectionDataMap
 from sefa.models.itr.faa3 import FAA3
 from sefa.models.org import Organization
-
-warn_missing_module("pandas")
-warn_missing_module("openpyxl")
-import pandas as pd
-import typing as t
 
 DEBUG = False
 
@@ -332,7 +329,9 @@ def __parse_fa_sheet(xl: pd.ExcelFile, sheet_name: str) -> t.List[FAA3]:
     for row_index in range(header_row_index + 1, len(sheet_pd)):
         data = sheet_pd.iloc[row_index]
 
-        def cell(header: str) -> t.Any:
+        # `data` is bound as a default so the helper reads the row of the iteration
+        # it was defined in rather than the last row of the loop
+        def cell(header: str, data: pd.Series = data) -> t.Any:
             return data.iloc[column_map[header]]
 
         if optional_cell_text(cell(FA_ENTITY_NAME_HEADER)) == "":

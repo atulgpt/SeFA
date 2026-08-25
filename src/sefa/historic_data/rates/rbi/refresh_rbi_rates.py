@@ -21,8 +21,11 @@ from datetime import date, datetime
 import typing as t
 from collections.abc import Sequence
 
+import pandas as pd
+import requests
+from openpyxl import Workbook
+
 from sefa.utils.rates.constants import RATES_FILE_ABS_PATH, RATES_SHEET_NAME
-from sefa.utils.runtime_utils import warn_missing_module
 
 COLUMNS = ["Date", "Time", "Currency Pairs", "Rate", "Comments"]
 TITLE_ROWS = ["Financial Benchmarks India Pvt Ltd", RATES_SHEET_NAME]
@@ -41,10 +44,6 @@ def __fetch_month_end_rates(
 ) -> Sequence[tuple[datetime, float]]:
     """Return an ordered list of (datetime, rate) for the last FBIL business day
     of each month in [start, end), as INR per 1 unit of `currency`."""
-    warn_missing_module("requests")
-    # pylint: disable-next=import-outside-toplevel
-    import requests
-
     resp = requests.get(
         FRANKFURTER_URL,
         params={
@@ -78,10 +77,6 @@ def __read_existing(rates_path: str) -> Sequence[t.List[t.Any]]:
     file is missing or unreadable."""
     if not os.path.exists(rates_path):
         return []
-    warn_missing_module("pandas")
-    # pylint: disable-next=import-outside-toplevel
-    import pandas as pd
-
     with pd.ExcelFile(rates_path, engine="openpyxl") as xl:
         df = xl.parse(sheet_name=RATES_SHEET_NAME, skiprows=0, header=2)
     df = df.reindex(columns=COLUMNS)
@@ -92,10 +87,6 @@ def __read_existing(rates_path: str) -> Sequence[t.List[t.Any]]:
 
 
 def __write(rates_path: str, rows: Sequence[list[t.Any]]) -> None:
-    warn_missing_module("openpyxl")
-    # pylint: disable-next=import-outside-toplevel
-    from openpyxl import Workbook
-
     wb = Workbook()
     ws = wb.active
     if ws:

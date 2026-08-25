@@ -12,9 +12,6 @@ from unittest.mock import MagicMock
 import pandas as pd
 import pytest
 
-# the project's own `parser` package carries the name of a stdlib module, so its
-# imports are ordered as though they were standard ones
-# pylint: disable-next=wrong-import-order
 from sefa.parser.demat.etrade import etrade_benefit_history_parser
 from sefa.utils import date_utils
 

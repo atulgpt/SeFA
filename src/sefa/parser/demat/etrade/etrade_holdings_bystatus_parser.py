@@ -1,24 +1,21 @@
 import operator
 import os
+import typing as t
+import itertools
+
+import pandas as pd
+
 from sefa.models.section_data import SectionDataMap
+from sefa.models.transaction import Transaction, TransactionWithTicker, Price
 from sefa.utils import date_utils, file_utils
-from sefa.utils.runtime_utils import warn_missing_module
 from sefa.utils.ticker_mapping import ticker_currency_info
 from sefa.utils import logger
 from sefa.utils.date_utils import CalendarMode
-
-warn_missing_module("pandas")
-warn_missing_module("openpyxl")
-import pandas as pd
-import typing as t
-import itertools
+from sefa.parser.itr import faa3_parser
 
 # from openpyxl import load_workbook
 
 DEBUG = False
-
-from sefa.models.transaction import Transaction, TransactionWithTicker, Price
-from sefa.parser.itr import faa3_parser
 
 # raw workings of this source, told apart by the operation mode they were read from
 PURCHASES_OUTPUT_FILE_NAME = "purchases_etrade_holdings_bystatus.json"

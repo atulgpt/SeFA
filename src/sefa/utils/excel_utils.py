@@ -2,15 +2,9 @@ from dataclasses import dataclass
 import enum
 from itertools import groupby
 from operator import attrgetter
-
-from sefa.utils.runtime_utils import warn_missing_module
-
-# `warn_missing_module` names a missing dependency before importing it fails, which
-# leaves every import below it reading as out of position and out of order
-# pylint: disable=wrong-import-position,wrong-import-order
-warn_missing_module("pandas")
-import pandas as pd
 import typing as t
+
+import pandas as pd
 
 # what a report prints in a cell that carries no value
 EMPTY_CELL_MARKER = "-"

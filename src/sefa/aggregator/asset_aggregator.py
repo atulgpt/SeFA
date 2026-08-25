@@ -1,4 +1,6 @@
 import math
+import typing as t
+from collections.abc import Sequence, Mapping
 
 from sefa.utils import date_utils, file_utils
 from sefa.utils.excel_utils import (
@@ -7,7 +9,6 @@ from sefa.utils.excel_utils import (
     currency_column_name,
     header_names,
 )
-from sefa.utils.runtime_utils import warn_missing_module
 from sefa.utils import logger
 from sefa.utils.rates import rbi_rates_utils
 from sefa.models.transaction import Transaction
@@ -15,18 +16,7 @@ from sefa.models.asset_sale import AssetSale
 from sefa.models.section_type import CAPITAL_GAIN_SECTION_TYPES, SectionType
 from sefa.models.section_data import SectionDataMap
 from sefa.models.itr.faa3 import FAA3
-
-# This project's own `parser` package carries the name of a stdlib module, so its
-# imports are ordered as though they were standard ones. `warn_missing_module` also
-# names a missing dependency before importing it fails, which leaves every import
-# below it reading as out of position
-# pylint: disable=wrong-import-position,wrong-import-order
 from sefa.parser.itr import faa3_parser
-
-warn_missing_module("pandas")
-warn_missing_module("openpyxl")
-import typing as t
-from collections.abc import Sequence, Mapping
 
 DEBUG = False
 

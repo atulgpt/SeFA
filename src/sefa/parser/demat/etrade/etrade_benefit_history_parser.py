@@ -1,24 +1,23 @@
+import typing as t
+import itertools
+
 import operator
 import os
+
+import pandas as pd
+
 from sefa.utils import date_utils, file_utils
 from sefa.utils import logger
-from sefa.utils.runtime_utils import warn_missing_module
 from sefa.utils import share_data_utils
 from sefa.utils.date_utils import CalendarMode
 from sefa.utils.ticker_mapping import ticker_currency_info
-
-warn_missing_module("pandas")
-import pandas as pd
-import typing as t
-import itertools
+from sefa.models.transaction import Transaction, TransactionWithTicker, Price
+from sefa.models.section_data import SectionDataMap
+from sefa.parser.itr import faa3_parser
 
 # from openpyxl import load_workbook
 
 DEBUG = False
-
-from sefa.models.transaction import Transaction, TransactionWithTicker, Price
-from sefa.models.section_data import SectionDataMap
-from sefa.parser.itr import faa3_parser
 
 # raw workings of this source, told apart by the operation mode they were read from
 PURCHASES_OUTPUT_FILE_NAME = "purchases_etrade_benefit_history.json"
@@ -53,7 +52,7 @@ def parse_espp_row(data: pd.Series) -> t.Optional[TransactionWithTicker]:
 
 
 def parse_espp(
-    xl: pd.ExcelFile, time_bounds_in_ms: t.Optional[date_utils.DateBoundsInMs]
+    xl: pd.ExcelFile,
 ) -> t.List[TransactionWithTicker]:
     logger.debug_log(f"Currently parsing {ESPP_SHEET_NAME} sheet")
     sheet_pd = xl.parse(sheet_name=ESPP_SHEET_NAME, skiprows=0, header=0)
@@ -130,7 +129,7 @@ def parse(
                 f"Excel sheet don't have either {ESPP_SHEET_NAME} or {RSU_SHEET_NAME}"
             )
             return SectionDataMap()
-        espp_purchases = parse_espp(xl, time_bounds_in_ms)
+        espp_purchases = parse_espp(xl)
         purchases.extend(espp_purchases)
 
         rsu_purchases = parse_rsu(xl, time_bounds_in_ms)

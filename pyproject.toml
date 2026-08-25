@@ -87,10 +87,6 @@ disable = [
     # section A3 column heading is stated whole rather than wrapped
     "line-too-long",
 
-    # this project's own `parser` package shadows the stdlib module of that name,
-    # which was removed in 3.10. Every import of a parser reads as deprecated
-    "deprecated-module",
-
     # a report is read with the source, the mode, the bounds and the output folder
     # in hand, and a filed row states every figure the schedule asks for
     "too-many-arguments",

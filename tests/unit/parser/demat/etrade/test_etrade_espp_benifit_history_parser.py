@@ -1,15 +1,13 @@
-from sefa.parser.demat.etrade import etrade_benefit_history_parser
 import pandas as pd
 
-from sefa.utils import date_utils
+from sefa.parser.demat.etrade import etrade_benefit_history_parser
 
 
 def test_espp_parsing_with_no_purchase(
     benefit_history_excel_file_with_no_purchase_espp: pd.ExcelFile,
-    time_bounds_in_ms: date_utils.DateBoundsInMs,
 ):
     espp_purchase = etrade_benefit_history_parser.parse_espp(
-        benefit_history_excel_file_with_no_purchase_espp, time_bounds_in_ms
+        benefit_history_excel_file_with_no_purchase_espp,
     )
     assert len(espp_purchase) == 0
 
@@ -91,11 +89,9 @@ def test_espp_parsing_row_excludes_tax_collection_shares():
 
 def test_espp_parsing_with_only_released_shares(
     benefit_history_excel_file_with_vested_and_released_espp: pd.ExcelFile,
-    time_bounds_in_ms: date_utils.DateBoundsInMs,
 ):
     espp_purchases = etrade_benefit_history_parser.parse_espp(
         benefit_history_excel_file_with_vested_and_released_espp,
-        time_bounds_in_ms=time_bounds_in_ms,
     )
     assert len(espp_purchases) == 1
     espp_purchase = espp_purchases[0]
