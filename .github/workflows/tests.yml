@@ -29,7 +29,9 @@ jobs:
           python -m pip install -e ".[test]"
 
       - name: Run tests
-        run: python -m pytest -q
+        # `-rs` names every skipped test, so one that skips because its
+        # environment is not set up does not read as a pass
+        run: python -m pytest -q -rs
 
   types:
     runs-on: ubuntu-latest
