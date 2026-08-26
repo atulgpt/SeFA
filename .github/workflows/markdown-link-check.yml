@@ -43,4 +43,6 @@ jobs:
             --no-progress
             --exclude-path '.venv'
             --exclude-path '.pytest_cache'
+            --exclude 'https://www.fbil.org.in/#/home'
+            --exclude 'https://finance.yahoo.com/quote/ADBE/history/'
             './**/*.md'
