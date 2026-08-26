@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import argparse
 import os
-import sys
 import typing as t
 
 from datetime import date, timedelta
@@ -88,7 +87,7 @@ class CliArgs(argparse.Namespace):
     skip_refresh: bool
 
 
-def main(argv: list[str]) -> None:
+def __run(argv: t.Optional[t.Sequence[str]]) -> None:
     parser = argparse.ArgumentParser(
         description="This is a Python module to generate Indian ITR schedule FA under section A3 automatically"
     )
@@ -270,9 +269,17 @@ def refresh_historic_data() -> None:
             )
 
 
-if __name__ == "__main__":
+def main(argv: t.Optional[t.Sequence[str]] = None) -> int:
+    """
+    Process exit code of one `sefa` run
+
+    `argv` defaults to the arguments of the process, which is what the console
+    script and `python -m sefa` both hand over. A test states its own arguments
+    """
     try:
-        main(sys.argv[1:])
+        __run(argv)
     except KeyboardInterrupt:
         logger.log("Interrupt requested... exiting")
-    sys.exit(0)
+        # what a shell reports for a run the user interrupted, 128 + SIGINT
+        return 130
+    return 0

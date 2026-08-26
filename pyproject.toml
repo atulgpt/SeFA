@@ -38,6 +38,9 @@ typecheck = [
 Repository = "https://github.com/atulgpt/SeFA.git"
 Issues = "https://github.com/atulgpt/SeFA/issues"
 
+[project.scripts]
+sefa = "sefa.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 [tool.setuptools.package-data]
