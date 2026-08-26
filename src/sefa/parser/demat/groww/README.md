@@ -3,7 +3,7 @@
 How to download the reports the Groww parsers read. Both are capital gains
 statements, so pick the financial year you are filing for.
 
-## [groww_indian_stocks_parser.py](https://github.com/atulgpt/SeFA/blob/main/parser/demat/groww/groww_indian_stocks_parser.py)
+## [groww_indian_stocks_parser.py](https://github.com/atulgpt/SeFA/blob/main/src/sefa/parser/demat/groww/groww_indian_stocks_parser.py)
 
 Reads the stocks capital gains statement, downloaded as
 `Stocks_Capital_Gains_Report_<client code>_<from>_<to>.xlsx`.
@@ -24,10 +24,10 @@ gain, and splits the rest across the sales in proportion to their sale value.
 A holding that trades on the exchange but is not equity oriented, a gold or silver
 ETF for instance, is taxed at the slab rate rather than under section 111A/112A.
 Those are listed by name in
-[constants.py](https://github.com/atulgpt/SeFA/blob/main/parser/demat/groww/constants.py)
+[constants.py](https://github.com/atulgpt/SeFA/blob/main/src/sefa/parser/demat/groww/constants.py)
 and have to be kept up to date by hand if your holding is not listed there.
 
-## [groww_indian_mf_parser.py](https://github.com/atulgpt/SeFA/blob/main/parser/demat/groww/groww_indian_mf_parser.py)
+## [groww_indian_mf_parser.py](https://github.com/atulgpt/SeFA/blob/main/src/sefa/parser/demat/groww/groww_indian_mf_parser.py)
 
 Reads the mutual funds capital gains statement, downloaded as
 `Mutual_Funds_Capital_Gains_Report_<from>_<to>.xlsx`.

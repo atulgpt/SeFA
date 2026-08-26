@@ -2,7 +2,7 @@
 
 How to download the report the INDmoney parser reads.
 
-## [indmoney_us_stocks_parser.py](https://github.com/atulgpt/SeFA/blob/main/parser/demat/indmoney/indmoney_us_stocks_parser.py)
+## [indmoney_us_stocks_parser.py](https://github.com/atulgpt/SeFA/blob/main/src/sefa/parser/demat/indmoney/indmoney_us_stocks_parser.py)
 
 Reads the consolidated tax report, downloaded as
 `consolidated_tax_report_<financial year>.xlsx`.
