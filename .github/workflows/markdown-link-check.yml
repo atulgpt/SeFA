@@ -1,0 +1,46 @@
+name: Markdown link check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # a third party link rots on its own schedule rather than on a change of ours
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  links:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # the cache carries the verdicts of the last run, so a pull request asks a
+      # third party host only about the links that are new or newly expired
+      - uses: actions/cache@v4
+        with:
+          path: .lycheecache
+          key: lychee-${{ github.sha }}
+          restore-keys: lychee-
+
+      - name: Check
+        uses: lycheeverse/lychee-action@v2
+        with:
+          # 403 and 429 are a host declining to answer a bot rather than a dead
+          # link, and failing a pull request on either teaches the reviewer to
+          # ignore this job. A 404 still fails, which is what catches a moved
+          # file or a renamed anchor
+          args: >-
+            --cache
+            --max-cache-age 1d
+            --max-retries 5
+            --accept '100..=103,200..=299,403,429'
+            --include-fragments
+            --no-progress
+            --exclude-path '.venv'
+            --exclude-path '.pytest_cache'
+            './**/*.md'
