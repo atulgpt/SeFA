@@ -12,6 +12,10 @@ data is only available from that date. The rates are fetched from the public
 Frankfurter API (https://frankfurter.dev), which exposes the FBIL benchmark via
 `providers=FBIL`. Only the currency pairs that are refreshed are replaced; any
 other pairs already in the file (and older RBI-era data) are left untouched.
+
+If Frankfurter cannot be reached, the latest FBIL rate is taken from the keyless
+AllRatesToday RBI table instead. That source serves the latest day only, so the
+months before it keep the rows already in the file.
 """
 
 import argparse
@@ -37,6 +41,8 @@ DEFAULT_CURRENCIES = ["USD"]
 DEFAULT_START = "2018-07-10"
 FRANKFURTER_URL = "https://api.frankfurter.dev/v2/rates"
 QUOTE_CURRENCY = "INR"
+# Latest FBIL reference rates only (USD, EUR, GBP, JPY, AED, IDR), no history
+ALLRATESTODAY_RBI_URL = "https://allratestoday.com/api/open/central-bank/rbi"
 
 
 def __fetch_month_end_rates(
@@ -70,6 +76,24 @@ def __fetch_month_end_rates(
         entry_date = datetime.strptime(entry["date"], "%Y-%m-%d")
         month_end[(entry_date.year, entry_date.month)] = (entry_date, entry["rate"])
     return list(month_end.values())
+
+
+def __fetch_latest_allratestoday(currency: str) -> tuple[datetime, float]:
+    """Return the latest FBIL (date, rate) as INR per 1 unit of `currency`."""
+    resp = requests.get(ALLRATESTODAY_RBI_URL, timeout=60)
+    resp.raise_for_status()
+    payload = resp.json()
+    pairs = {
+        entry["base"]: entry["value"]
+        for entry in payload["rates"]
+        if entry["quote"] == QUOTE_CURRENCY
+    }
+    if currency not in pairs:
+        raise SystemExit(
+            f"AllRatesToday RBI table has no {currency}/{QUOTE_CURRENCY} rate."
+            + f" Found {sorted(pairs)}"
+        )
+    return datetime.strptime(payload["rate_date"], "%Y-%m-%d"), float(pairs[currency])
 
 
 def __read_existing(rates_path: str) -> Sequence[t.List[t.Any]]:
@@ -115,7 +139,25 @@ def refresh(
     added = 0
     for cur in currencies:
         pair = f"INR / 1 {cur.upper()}"
-        for entry_date, rate in __fetch_month_end_rates(cur, start, end):
+        try:
+            month_end_rates = __fetch_month_end_rates(cur, start, end)
+        except (requests.RequestException, SystemExit) as err:
+            entry_date, rate = __fetch_latest_allratestoday(cur.upper())
+            if not start <= entry_date.date().isoformat() <= end:
+                raise
+            print(
+                f"FBIL fetch for {cur} from Frankfurter failed ({err}); refreshed only "
+                f"{entry_date:%Y-%m-%d} from AllRatesToday, earlier months are unchanged"
+            )
+            # the parser keeps one rate per month, so the latest one replaces its month
+            month = entry_date.strftime("%b %Y")
+            rows += [
+                row
+                for row in existing_rows
+                if row[2] == pair and not str(row[0]).endswith(month)
+            ]
+            month_end_rates = [(entry_date, rate)]
+        for entry_date, rate in month_end_rates:
             rows.append([entry_date.strftime(DATE_FMT), RATE_TIME, pair, rate, None])
             added += 1
 
